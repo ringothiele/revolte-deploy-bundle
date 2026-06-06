@@ -4,6 +4,20 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 
 ---
 
+## SSH-Key-Konvention — immer einhalten
+
+Jeder Entwickler hat pro Projekt und Umgebung einen eigenen SSH-Key.  
+**Namensschema:** `~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`
+
+Kürzel im Team: `rt` (Ringo Thiele), `pl`, `sl`
+
+Beispiel: `rt_rhodetec_stage_ed25519` — nicht `rhodetec_stage_ed25519`.
+
+Prüfe zuerst ob ein Key mit dem richtigen Namen existiert, bevor du einen neuen vorschlägst.  
+Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlinks anzulegen.
+
+---
+
 ## Grundprinzipien
 
 1. **Keine Annahmen treffen.** Prüfe jeden Zustand bevor du eine Aktion vorschlägst. Frag nicht "soll ich X einrichten?" wenn du X selbst prüfen kannst.
@@ -150,7 +164,14 @@ ddev exec ssh-add -l
 ```
 
 → Der Key (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) muss in der Liste erscheinen.  
-→ **nicht in Liste:** Schritt 2 und 3 wiederholen. Niemals versuchen, Keys direkt im Container zu laden — `~/.ssh/revolte/` ist dort nicht vorhanden.
+→ **nicht in Liste:** Schritt 2 und 3 wiederholen.
+
+**Verboten — diese Workarounds niemals vorschlagen:**
+- Symlinks von `~/.ssh/` auf `~/.ssh/revolte/` anlegen
+- Keys direkt im ddev-Container laden
+- Keys nach `~/.ssh/` verschieben oder kopieren
+
+Der einzig korrekte Weg: `ssh-add` auf dem Host, dann `ddev auth ssh`.
 
 **Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus):**
 
