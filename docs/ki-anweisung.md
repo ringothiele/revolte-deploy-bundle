@@ -118,20 +118,32 @@ Wichtig: Bei Hetzner Managed Servern ist der Port oft **222**, nicht 22.
 
 ## Ablauf: ddev SSH einrichten
 
+Die Schritte müssen in dieser Reihenfolge ausgeführt werden — kein Schritt überspringen.
+
 **Schritt 1 — homeadditions prüfen (KI liest direkt):**
 
-Prüfe ob `.ddev/homeadditions/.ssh/config.d/` existiert und einen Eintrag für das SSH-Profil enthält.
+Prüfe ob `.ddev/homeadditions/.ssh/config.d/revolte.conf` existiert und einen Eintrag für das SSH-Profil enthält.
 
 → **vorhanden:** weiter mit Schritt 2  
-→ **fehlt:** Datei `.ddev/homeadditions/.ssh/config.d/revolte.conf` anlegen mit den SSH-Profil-Einträgen (ohne `IdentityFile`, da Keys über den ddev-Agent laufen), dann Entwickler ausführen lassen:
+→ **fehlt:** Datei `.ddev/homeadditions/.ssh/config.d/revolte.conf` anlegen mit dem SSH-Profil-Eintrag (ohne `IdentityFile`, da Keys über den ddev-Agent laufen):
+
+```
+Host PROFIL-NAME
+    HostName IP-ODER-HOSTNAME
+    Port PORT
+    User BENUTZERNAME
+    IdentitiesOnly yes
+```
+
+Danach Entwickler ausführen lassen:
 
 ```bash
 ddev restart
 ```
 
-**Schritt 2 — Key in Host-SSH-Agent laden:**
+**Schritt 2 — Key in Host-SSH-Agent laden (Entwickler ausführen lassen):**
 
-`ddev auth ssh` leitet nur Keys weiter, die bereits im SSH-Agent des Hosts geladen sind. Keys in Unterordnern wie `~/.ssh/revolte/` werden nicht automatisch gefunden.
+`ddev auth ssh` findet Keys in Unterordnern wie `~/.ssh/revolte/` nicht automatisch. Der Key muss zuerst manuell in den Host-Agent geladen werden.
 
 Entwickler ausführen lassen (fragt nach Passphrase):
 
@@ -139,23 +151,22 @@ Entwickler ausführen lassen (fragt nach Passphrase):
 ssh-add ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
 ```
 
-Prüfen ob der Key geladen ist (KI führt selbst aus):
+Danach prüfen ob der Key geladen ist (KI führt selbst aus):
 
 ```bash
 ssh-add -l
 ```
 
-→ Der Key sollte in der Liste erscheinen. Falls nicht: `ssh-add`-Befehl wiederholen.
+→ Der Key muss in der Liste erscheinen — erst dann weitermachen.  
+→ **nicht in Liste:** `ssh-add`-Befehl nochmals ausführen lassen, Passphrase prüfen.
 
-**Schritt 3 — Keys in ddev-Container übertragen:**
-
-Entwickler ausführen lassen:
+**Schritt 3 — Keys in ddev-Container übertragen (Entwickler ausführen lassen):**
 
 ```bash
 ddev auth ssh
 ```
 
-`ddev auth ssh` leitet alle im Host-Agent geladenen Keys in den ddev-Container weiter — keine erneute Passphrase-Eingabe.
+Dieser Befehl leitet alle im Host-Agent geladenen Keys in den ddev-Container weiter. Keine erneute Passphrase.
 
 **Schritt 4 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
 
@@ -164,14 +175,14 @@ ddev exec ssh-add -l
 ```
 
 → Der Key (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) muss in der Liste erscheinen.  
-→ **nicht in Liste:** Schritt 2 und 3 wiederholen.
+→ **nicht in Liste:** Schritt 2 und 3 wiederholen — `ssh-add` auf dem Host war wahrscheinlich nicht erfolgreich.
 
 **Verboten — diese Workarounds niemals vorschlagen:**
 - Symlinks von `~/.ssh/` auf `~/.ssh/revolte/` anlegen
 - Keys direkt im ddev-Container laden
 - Keys nach `~/.ssh/` verschieben oder kopieren
 
-Der einzig korrekte Weg: `ssh-add` auf dem Host, dann `ddev auth ssh`.
+Der einzig korrekte Weg: `ssh-add` auf dem Host → `ddev auth ssh` → `ddev exec ssh-add -l` zur Verifikation.
 
 **Schritt 5 — Verbindung aus ddev testen (KI führt selbst aus):**
 
