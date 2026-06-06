@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Revolte Deploy — Projekt-Setup
 #
-# Legt eine neue lokale Contao-Entwicklungsumgebung an:
-# DDEV initialisieren + leeres Contao installieren
-#
-# Verwendung (im leeren Projektverzeichnis ausführen):
-#   bash revolte-setup
+# Legt eine neue lokale Contao-Entwicklungsumgebung an.
+# Muss in ~/projekte/ liegen und von dort gestartet werden:
+#   bash ~/projekte/revolte-setup
 
 set -euo pipefail
 
@@ -39,20 +37,23 @@ if [ "$MISSING" -eq 1 ]; then
     exit 1
 fi
 
-PROJECT_DIR="$(pwd)"
-
-if [ -f "$PROJECT_DIR/composer.json" ]; then
-    warn "composer.json existiert bereits."
-    read -rp "   Trotzdem fortfahren? [j/N]: " CONTINUE
-    [[ "${CONTINUE,,}" == "j" ]] || exit 0
-fi
-
 # ── Projektkonfiguration ──────────────────────────────────────────────────────
 step "Projektkonfiguration"
 
-DEFAULT_NAME="$(basename "$PROJECT_DIR")"
-read -rp "Projektname [$DEFAULT_NAME]: " PROJECT_NAME
-PROJECT_NAME="${PROJECT_NAME:-$DEFAULT_NAME}"
+PROJECTS_DIR="$(dirname "$(realpath "$0")")"
+
+while true; do
+    read -rp "Projektname: " PROJECT_NAME
+    if [ -z "$PROJECT_NAME" ]; then
+        warn "Projektname darf nicht leer sein."
+    elif [ -d "$PROJECTS_DIR/$PROJECT_NAME" ]; then
+        warn "Ordner '$PROJECTS_DIR/$PROJECT_NAME' existiert bereits — anderen Namen wählen."
+    else
+        break
+    fi
+done
+
+PROJECT_DIR="$PROJECTS_DIR/$PROJECT_NAME"
 
 echo ""
 echo "Contao-Version:"
@@ -80,14 +81,21 @@ MARIADB_VERSION="${MARIADB_VERSION:-11.8}"
 echo ""
 echo "Zusammenfassung:"
 echo "  Projekt:  $PROJECT_NAME"
+echo "  Ordner:   $PROJECT_DIR"
 echo "  Contao:   $CONTAO_VERSION"
 echo "  PHP:      $PHP_VERSION"
 echo "  Webroot:  $DOCROOT"
 echo "  MariaDB:  $MARIADB_VERSION"
-echo "  Ordner:   $PROJECT_DIR"
 echo ""
 read -rp "Starten? [J/n]: " CONFIRM
 [[ "${CONFIRM,,}" != "n" ]] || exit 0
+
+# ── Projektordner anlegen ─────────────────────────────────────────────────────
+step "Projektordner anlegen"
+
+mkdir "$PROJECT_DIR"
+cd "$PROJECT_DIR"
+ok "Ordner erstellt: $PROJECT_DIR"
 
 # ── DDEV ──────────────────────────────────────────────────────────────────────
 step "DDEV initialisieren"
@@ -116,12 +124,6 @@ ok "DDEV gestartet"
 
 # ── Contao installieren ───────────────────────────────────────────────────────
 step "Contao installieren (contao/managed-edition:$CONTAO_VERSION)"
-
-# Script temporär aus dem Projektordner entfernen — composer create-project
-# (und DDEV-Wrapper) erlauben nur leere Verzeichnisse
-if [ -f "$PROJECT_DIR/revolte-setup" ]; then
-    mv "$PROJECT_DIR/revolte-setup" /tmp/revolte-setup-running
-fi
 
 ddev composer create "contao/managed-edition:$CONTAO_VERSION" --no-interaction
 ok "Contao installiert"
@@ -153,19 +155,20 @@ echo -e "  Adminer + Mailpit: URLs via${B} ddev describe${NC}"
 echo ""
 echo "Nächste Schritte:"
 echo ""
-echo "  1. revolte-deploy-tools als packages/revolte-deploy-tools/ ins Projekt kopieren"
-echo "     und als dev-Abhängigkeit eintragen:"
+echo "  1. revolte-deploy-tools als dev-Abhängigkeit eintragen:"
 echo ""
-echo '     ddev composer config repositories.revolte-deploy-tools '"'"'{"type":"path","url":"./packages/revolte-deploy-tools","options":{"symlink":false}}'"'"
-echo '     ddev composer require --dev "revolte/contao-deploy-tools:*@dev"'
+echo '     ddev composer config repositories.revolte-deploy-tools '"'"'{"type":"vcs","url":"git@github.com:ringothiele/revolte-deploy-bundle.git"}'"'"
+echo '     ddev composer require --dev "revolte/contao-deploy-tools:@dev"'
 echo ""
 echo "  2. Konfiguration anlegen:"
 echo "     cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml"
 echo ""
-echo "  3. Je nach Fall weiter:"
+echo "  3. ddev auth ssh ausführen (SSH-Keys für Deploy-Commands laden)"
+echo ""
+echo "  4. Je nach Fall weiter:"
 echo -e "     ${B}Neues Projekt:${NC}        revolte:deploy:init <env>"
 echo -e "     ${B}Repo + Server:${NC}        revolte:deploy:content:pull <env>"
 echo -e "     ${B}Legacy (kein Repo):${NC}   Erst Repo + Deploy Key einrichten, dann content:pull"
 echo ""
-echo "  Alle Commands: APP_ENV=dev php vendor/bin/contao-console revolte:deploy:*"
+echo "  Alle Commands: ddev exec php bin/console revolte:deploy:*"
 echo ""
