@@ -23,6 +23,9 @@
             "Revolte\\DeployTools\\Tests\\": "tests/"
         }
     },
+    "bin": [
+        "bin/revolte-setup"
+    ],
     "extra": {
         "contao-manager-plugin": "Revolte\\DeployTools\\ContaoManager\\Plugin"
     },
