@@ -59,9 +59,14 @@ Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlink
 - `ssh-copy-id` — Key auf Server kopieren (fragt nach Server-Passwort)
 - `ddev restart` / `ddev start` — ddev-Containerverwaltung
 
-**Direkter SSH-Zugriff vom WSL2-Host auf Server — funktioniert grundsätzlich nicht:**
+**SSH zum Server — nur über Profilnamen, nie über IP/Port direkt:**
 
-Managed Server (z. B. Hetzner) sind vom WSL2-Host aus in der Regel nicht direkt erreichbar. Alle SSH-Verbindungen zum Server laufen ausschließlich über `ddev exec ssh PROFIL ...` (aus dem ddev-Container heraus). Niemals versuchen, vom Host aus per SSH auf den Server zuzugreifen — das schlägt fehl und kann fail2ban auslösen.
+Alle SSH-Verbindungen zum Server laufen ausschließlich über `ddev exec ssh PROFILNAME "..."`.  
+PROFILNAME ist der `Host`-Alias aus `~/.ssh/config`, z. B. `prod-server` oder `rhodetec-stage`.
+
+Niemals `ddev exec ssh -p PORT user@IP "..."` verwenden — das umgeht den SSH-Config-Eintrag, wählt keinen Key automatisch aus und löst durch Passwort-Versuche fail2ban aus.
+
+Niemals vom WSL2-Host aus direkt auf den Server verbinden (`ssh ...` ohne `ddev exec`) — der Server ist vom Host aus nicht erreichbar.
 
 **Browser-Aktionen:**
 
@@ -220,7 +225,7 @@ Falls unklar: Entwickler fragen:
 ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-(Ersetze `INHALT-DES-PUBLIC-KEY` durch den tatsächlichen Inhalt aus Schritt 1.)
+`BESTEHENDES-PROFIL` ist der `Host`-Alias aus `~/.ssh/config` — niemals `user@IP` oder `-p PORT` verwenden.
 
 **Schritt 3b — Key über Passwort-Login hinterlegen:**
 
