@@ -23,23 +23,35 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 - `ddev exec php bin/console revolte:deploy:status` — Deploy-Stand prüfen
 - `ddev exec php bin/console revolte:deploy:doctor` — Lokale Umgebung prüfen
 - `ddev exec php bin/console revolte:deploy:check <env>` — Zielumgebung prüfen
-- `ddev exec ssh PROFIL "echo OK"` — SSH-Verbindung aus ddev testen (nach ddev auth ssh)
+- `ddev exec ssh PROFIL "echo OK"` — SSH-Verbindung aus ddev testen
 - `ddev exec ssh PROFIL "ls DATEI 2>/dev/null && echo vorhanden || echo fehlt"` — Dateien auf Server prüfen
+- `ddev exec ssh-add -l` — prüfen welche Keys im ddev-Agent geladen sind
+- `ddev exec ssh PROFIL "cat ~/.ssh/KEYNAME.pub"` — Public Key auf Server lesen
 - Lokale Dateien lesen (z. B. `~/.ssh/config`, `config/revolte_deploy.yaml`)
-- Git-Befehle lokal: `git status`, `git log`, etc.
+- Git-Befehle lokal: `git status`, `git log`, `git add`, `git commit` etc.
+- Deploy-Commands via ddev: `ddev exec php bin/console revolte:deploy:*`
 
-## Was der Entwickler ausführen muss
+## Was die KI NICHT ausführen kann — immer Entwickler ausführen lassen
 
-Diese Befehle brauchen eine Passphrase, Passwort-Eingabe oder Browserinteraktion:
+**Passphrase/Passwort-Befehle — KI kann keine interaktive Eingabe machen:**
 
-- `ssh-keygen` — SSH-Key auf dem lokalen Rechner generieren
-- `ssh-copy-id` — Public Key auf Server kopieren, nur wenn Passwort-Login möglich und Server vom Host erreichbar
-- `ddev auth ssh` — SSH-Keys in den ddev-Container laden (fragt nach Passphrase)
-- `ddev restart` — nach Änderungen an `.ddev/homeadditions/`
-- Deploy Keys in GitHub eintragen (Browser)
+- `ssh-keygen` — SSH-Key generieren (fragt nach Passphrase)
+- `ddev auth ssh` — SSH-Keys in ddev laden (fragt nach Passphrase)
+- `ssh-copy-id` — Key auf Server kopieren (fragt nach Server-Passwort)
+- `ddev restart` / `ddev start` — ddev-Containerverwaltung
 
-**Nicht vom WSL2-Host aus möglich:**  
-`ssh-copy-id` schlägt fehl wenn der Server vom WSL2-Host nicht direkt erreichbar ist. In diesem Fall den Key über ein bestehendes SSH-Profil oder das Server-Control-Panel hinterlegen (→ Ablauf "Public Key auf Server hinterlegen").
+**Direkter SSH-Zugriff vom WSL2-Host auf Server — funktioniert grundsätzlich nicht:**
+
+Managed Server (z. B. Hetzner) sind vom WSL2-Host aus in der Regel nicht direkt erreichbar. Alle SSH-Verbindungen zum Server laufen ausschließlich über `ddev exec ssh PROFIL ...` (aus dem ddev-Container heraus). Niemals versuchen, vom Host aus per SSH auf den Server zuzugreifen — das schlägt fehl und kann fail2ban auslösen.
+
+**Browser-Aktionen:**
+
+- Deploy Keys in GitHub eintragen
+- Server-Control-Panel (Plesk, Hetzner Robot) bedienen
+
+**git push:**
+
+Niemals `git push` ausführen. Commits sind ok — Push macht immer der Entwickler selbst.
 
 ---
 
