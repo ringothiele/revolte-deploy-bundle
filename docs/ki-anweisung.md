@@ -81,22 +81,27 @@ Niemals `git push` ausführen. Commits sind ok — Push macht immer der Entwickl
 
 ## Ablauf: SSH-Key auf lokalem Entwickler-Rechner
 
-Ein Key gilt pro Entwickler und Server-Account. Zuerst prüfen ob bereits ein passender Key existiert.
+Ein Key gilt pro Entwickler und Server-Account — nicht pro Projekt. Vor jeder neuen Einrichtung prüfen ob bereits ein passender Key existiert.
 
-**Schritt 1 — Vorhandenen Key ermitteln (KI liest `~/.ssh/config`):**
+**Schritt 1 — Vorhandene Keys und Profile ermitteln (KI liest direkt):**
 
-Prüfe ob in `~/.ssh/config` bereits ein Eintrag für denselben Server (gleicher HostName + Port + User) mit einem Key des Entwicklers existiert. Wenn ja: diesen Key auch für das neue Projekt verwenden — weiter mit SSH-Config.
+Lese `~/.ssh/config` und liste alle vorhandenen `Host`-Einträge mit ihrem `HostName`, `Port`, `User` und `IdentityFile`.
 
-**Schritt 2 — Falls kein Key für diesen Server-Account existiert:**
+Prüfe dann: gibt es einen Eintrag der auf denselben Server zeigt (gleicher HostName + Port + User) wie die neue Umgebung?
 
-Lass den Entwickler ausführen:
+→ **Ja, passender Eintrag gefunden:** Den Entwickler fragen:
 
-```bash
-ls ~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
-```
+> "Für diesen Server existiert bereits ein SSH-Key: `[KEYNAME]` (Profil `[PROFILNAME]`).  
+> Soll ich diesen Key auch für das neue Profil verwenden, oder einen neuen Key anlegen?"
 
-→ **vorhanden:** weiter mit SSH-Config  
-→ **fehlt:** Entwickler ausführen lassen:
+  - **Bestehenden Key verwenden:** IdentityFile aus dem vorhandenen Eintrag übernehmen → weiter mit SSH-Config
+  - **Neuen Key anlegen:** weiter mit Schritt 2
+
+→ **Nein, kein passender Eintrag:** weiter mit Schritt 2
+
+**Schritt 2 — Neuen Key generieren (nur wenn Schritt 1 keinen passenden Key ergeben hat):**
+
+Entwickler ausführen lassen:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519 -C "KÜRZEL-SERVERACCOUNT"
