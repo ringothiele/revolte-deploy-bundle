@@ -7,7 +7,7 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 ## SSH-Key-Konvention — immer einhalten
 
 Jeder Entwickler hat pro Projekt und Umgebung einen eigenen SSH-Key.  
-**Namensschema:** `~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`
+**Namensschema:** `~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`
 
 Kürzel im Team: `rt` (Ringo Thiele), `pl`, `sl`
 
@@ -50,8 +50,7 @@ Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlink
 **Passphrase/Passwort-Befehle — KI kann keine interaktive Eingabe machen:**
 
 - `ssh-keygen` — SSH-Key generieren (fragt nach Passphrase)
-- `ssh-add ~/.ssh/revolte/KÜRZEL_...` — Key in Host-SSH-Agent laden (fragt nach Passphrase); muss vor `ddev auth ssh` ausgeführt werden
-- `ddev auth ssh` — geladene Host-Keys in ddev-Container übertragen (keine Passphrase, aber Schritt 2 muss vorher passiert sein)
+- `ddev auth ssh` — Keys aus `~/.ssh/` in ddev-Container laden (fragt nach Passphrase für jeden Key)
 - `ssh-copy-id` — Key auf Server kopieren (fragt nach Server-Passwort)
 - `ddev restart` / `ddev start` — ddev-Containerverwaltung
 
@@ -81,15 +80,14 @@ Lese `~/.ssh/config` und prüfe ob ein passender `IdentityFile`-Eintrag für Ent
 Alternativ: lass den Entwickler ausführen:
 
 ```bash
-ls ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
+ls ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
 ```
 
 → **vorhanden:** weiter mit SSH-Config prüfen  
 → **fehlt:** Entwickler ausführen lassen:
 
 ```bash
-mkdir -p ~/.ssh/revolte
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
+ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
 ```
 
 ---
@@ -108,7 +106,7 @@ Host PROFIL-NAME
     HostName IP-ODER-HOSTNAME
     Port PORT
     User BENUTZERNAME
-    IdentityFile ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
+    IdentityFile ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
     IdentitiesOnly yes
 ```
 
@@ -141,48 +139,31 @@ Danach Entwickler ausführen lassen:
 ddev restart
 ```
 
-**Schritt 2 — Key in Host-SSH-Agent laden (Entwickler ausführen lassen):**
+**Schritt 2 — Keys in ddev-Container laden (Entwickler ausführen lassen):**
 
-`ddev auth ssh` findet Keys in Unterordnern wie `~/.ssh/revolte/` nicht automatisch. Der Key muss zuerst manuell in den Host-Agent geladen werden.
+`ddev auth ssh` scannt `~/.ssh/` direkt nach privaten Key-Dateien und lädt sie in den ddev-SSH-Agent. Es nutzt dabei **nicht** den Host-SSH-Agent — Keys müssen deshalb direkt in `~/.ssh/` liegen, nicht in Unterordnern.
 
-Entwickler ausführen lassen (fragt nach Passphrase):
-
-```bash
-ssh-add ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
-```
-
-Danach prüfen ob der Key geladen ist (KI führt selbst aus):
-
-```bash
-ssh-add -l
-```
-
-→ Der Key muss in der Liste erscheinen — erst dann weitermachen.  
-→ **nicht in Liste:** `ssh-add`-Befehl nochmals ausführen lassen, Passphrase prüfen.
-
-**Schritt 3 — Keys in ddev-Container übertragen (Entwickler ausführen lassen):**
+Entwickler ausführen lassen (fragt für jeden gefundenen Key nach der Passphrase):
 
 ```bash
 ddev auth ssh
 ```
 
-Dieser Befehl leitet alle im Host-Agent geladenen Keys in den ddev-Container weiter. Keine erneute Passphrase.
-
-**Schritt 4 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
+**Schritt 3 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
 
 ```bash
 ddev exec ssh-add -l
 ```
 
 → Der Key (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) muss in der Liste erscheinen.  
-→ **nicht in Liste:** Schritt 2 und 3 wiederholen — `ssh-add` auf dem Host war wahrscheinlich nicht erfolgreich.
+→ **nicht in Liste:** Key liegt nicht direkt in `~/.ssh/` oder Passphrase wurde falsch eingegeben.
 
 **Verboten — diese Workarounds niemals vorschlagen:**
-- Symlinks von `~/.ssh/` auf `~/.ssh/revolte/` anlegen
+- Symlinks in `~/.ssh/` anlegen
 - Keys direkt im ddev-Container laden
-- Keys nach `~/.ssh/` verschieben oder kopieren
+- Keys in Unterordner wie `~/.ssh/revolte/` legen — `ddev auth ssh` findet sie dort nicht
 
-Der einzig korrekte Weg: `ssh-add` auf dem Host → `ddev auth ssh` → `ddev exec ssh-add -l` zur Verifikation.
+Der einzig korrekte Weg: Key in `~/.ssh/` → `ddev auth ssh` → `ddev exec ssh-add -l` zur Verifikation.
 
 **Schritt 5 — Verbindung aus ddev testen (KI führt selbst aus):**
 
@@ -202,7 +183,7 @@ ddev exec ssh PROFIL-NAME "echo OK"
 
 **Schritt 1 — Public Key lesen (KI liest direkt):**
 
-Lese die Datei `~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
+Lese die Datei `~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
 
 **Schritt 2 — Bestehenden Serverzugang ermitteln:**
 
@@ -227,7 +208,7 @@ ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authori
 Entwickler ausführen lassen (fragt nach Server-Passwort):
 
 ```bash
-ssh-copy-id -i ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
+ssh-copy-id -i ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
 ```
 
 **Schritt 4 — Verbindung prüfen (KI führt selbst aus):**

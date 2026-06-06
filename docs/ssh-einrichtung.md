@@ -54,28 +54,22 @@ Beispiele:
 ### Prüfen ob bereits ein Key existiert
 
 ```bash
-ls ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "nicht vorhanden"
+ls ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "nicht vorhanden"
 ```
 
 → **vorhanden:** weiter mit [SSH-Config einrichten](#sshconfig-einrichten)  
 → **nicht vorhanden:** Key generieren (nächster Schritt)
 
-### Ordner für Revolte-Keys anlegen
-
-```bash
-mkdir -p ~/.ssh/revolte
-```
-
 ### Key generieren
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
+ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
 ```
 
 Beispiel für Ringo, Projekt `kundea`, Umgebung `stage`:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/rt_kundea_stage_ed25519 -C "rt-kundea-stage"
+ssh-keygen -t ed25519 -f ~/.ssh/rt_kundea_stage_ed25519 -C "rt-kundea-stage"
 ```
 
 Du wirst nach einer **Passphrase** gefragt. Empfehlung: eine setzen und im Passwortmanager speichern.  
@@ -110,7 +104,7 @@ Host kundea-stage
     HostName 78.46.130.9
     Port 222
     User revolc
-    IdentityFile ~/.ssh/revolte/rt_kundea_stage_ed25519
+    IdentityFile ~/.ssh/rt_kundea_stage_ed25519
     IdentitiesOnly yes
 ```
 
@@ -118,7 +112,7 @@ Host kundea-stage
 Den richtigen Port findest du im Hetzner Konsolen-Panel oder frag nach.
 
 Danach kannst du einfach `ssh kundea-stage` schreiben statt  
-`ssh -p 222 revolc@78.46.130.9 -i ~/.ssh/revolte/...`
+`ssh -p 222 revolc@78.46.130.9 -i ~/.ssh/...`
 
 ---
 
@@ -138,7 +132,7 @@ ssh PROFIL-NAME "echo OK" 2>/dev/null && echo "Verbindung funktioniert" || echo 
 ### Public Key anzeigen
 
 ```bash
-cat ~/.ssh/revolte/rt_kundea_stage_ed25519.pub
+cat ~/.ssh/rt_kundea_stage_ed25519.pub
 ```
 
 Die Ausgabe sieht ungefähr so aus:
@@ -152,7 +146,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... kundea-stage-deploy-key
 Einfachste Methode — benötigt einmalig Passwort-Login (sofern der Server das erlaubt):
 
 ```bash
-ssh-copy-id -i ~/.ssh/revolte/rt_kundea_stage_ed25519.pub -p 222 revolc@78.46.130.9
+ssh-copy-id -i ~/.ssh/rt_kundea_stage_ed25519.pub -p 222 revolc@78.46.130.9
 ```
 
 Falls Passwort-Login deaktiviert ist: jemanden mit bestehendem Zugang bitten,  
@@ -169,7 +163,7 @@ Der **ssh-agent** merkt sich die entsperrten Keys für die aktuelle Sitzung.
 
 ```bash
 eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/revolte/rt_kundea_stage_ed25519
+ssh-add ~/.ssh/rt_kundea_stage_ed25519
 ```
 
 Du wirst einmal nach der Passphrase gefragt. Danach klappt SSH in dieser Terminal-Sitzung ohne erneute Eingabe.
@@ -347,7 +341,7 @@ Wenn ihr mit verschiedenen GitHub-Accounts arbeitet (z. B. privat + Agentur), br
 Host github-revolte
     HostName github.com
     User git
-    IdentityFile ~/.ssh/revolte/revolte_github_ed25519
+    IdentityFile ~/.ssh/revolte_github_ed25519
     IdentitiesOnly yes
 ```
 
@@ -362,7 +356,7 @@ git:
 
 ## Checkliste für ein neues Projekt
 
-- [ ] Key generieren: `ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKT_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKT-UMGEBUNG"`
+- [ ] Key generieren: `ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_PROJEKT_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKT-UMGEBUNG"`
 - [ ] Eintrag in `~/.ssh/config` anlegen (mit korrektem Port!)
 - [ ] Public Key auf Server eintragen (`ssh-copy-id` oder manuell)
 - [ ] Verbindung testen: `ssh PROFIL-NAME "echo OK"`
@@ -374,15 +368,16 @@ git:
 
 ## SSH in ddev
 
-ddev-Container haben keinen Zugriff auf den SSH-Agent des Host-Systems.  
-Deploy-Commands, die SSH brauchen, laufen innerhalb von ddev — deshalb:
+Deploy-Commands laufen innerhalb des ddev-Containers. `ddev auth ssh` lädt deine SSH-Keys in den Container:
 
 ```bash
 ddev auth ssh
 ```
 
 Einmalig nach jedem `ddev start` (bzw. nach WSL-Neustart) ausführen.  
-Du wirst nach der Passphrase gefragt. Danach funktionieren alle Deploy-Commands im Container.
+Du wirst für jeden gefundenen Key nach der Passphrase gefragt.
+
+**Wichtig:** `ddev auth ssh` scannt `~/.ssh/` direkt nach Key-Dateien. Keys müssen deshalb direkt in `~/.ssh/` liegen — nicht in Unterordnern. Das Namensschema `KÜRZEL_PROJEKT_UMGEBUNG_ed25519` sorgt dafür dass Keys trotzdem eindeutig benannt und voneinander unterscheidbar sind.
 
 **SSH-Profile (Host-Einträge) für ddev:**  
 Diese sind im Repo unter `.ddev/homeadditions/.ssh/config.d/` hinterlegt und werden  
