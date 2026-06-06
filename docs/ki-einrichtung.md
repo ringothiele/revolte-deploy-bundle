@@ -9,10 +9,10 @@ Die KI führt dich Schritt für Schritt durch den Prozess, prüft selbst was sie
 
 - Die KI prüft jeden Schritt **bevor** sie ihn ausführt — keine Annahmen, keine blinden Aktionen
 - **Was die KI selbst erledigt:** Status abfragen, Verbindungen testen, Deploy-Befehle ausführen
-- **Was du ausführst:** Alles mit SSH-Passphrase (`ddev auth ssh`, `ssh-keygen`, `ssh-copy-id`) und GitHub-Aktionen im Browser
+- **Was du ausführst:** Alles mit SSH-Passphrase (`ddev auth ssh`, `ssh-keygen`) und GitHub-Aktionen im Browser
 
 Damit die KI weiß wie sie vorgehen soll, referenziert sie die Datei  
-`packages/revolte-deploy-tools/docs/ki-anweisung.md` in diesem Repo.
+`vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md` in diesem Repo.
 
 ---
 
@@ -45,7 +45,7 @@ Stage-Umgebung:
   - GitHub-Repo: [z. B. git@github.com:revolte/kundea.git]
 
 Führe mich durch die komplette Einrichtung.
-Orientiere dich dabei an packages/revolte-deploy-tools/docs/ki-anweisung.md.
+Orientiere dich dabei an vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md.
 ```
 
 ---
@@ -63,7 +63,7 @@ Remote-Pfad: [z. B. /usr/www/users/...]
 
 Prüfe zuerst ob die Umgebung bereits in config/revolte_deploy.yaml eingetragen ist.
 Führe mich dann durch SSH-Einrichtung, GitHub Deploy Key und Init.
-Orientiere dich dabei an packages/revolte-deploy-tools/docs/ki-anweisung.md.
+Orientiere dich dabei an vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md.
 ```
 
 ---
@@ -78,7 +78,7 @@ Server: [IP oder Hostname], Port [PORT], User [BENUTZERNAME]
 
 Prüfe zuerst ob bereits ein Key und ein Config-Eintrag vorhanden sind.
 Führe mich dann durch alles was noch fehlt.
-Orientiere dich dabei an packages/revolte-deploy-tools/docs/ki-anweisung.md.
+Orientiere dich dabei an vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md.
 ```
 
 ---
@@ -92,7 +92,7 @@ Das revolte:deploy:init ist mit einem GitHub-Fehler fehlgeschlagen.
 Das SSH-Profil für den Server ist [PROFIL-NAME], der Projektname ist [PROJEKTNAME].
 
 Prüfe welche Schritte für den GitHub Deploy Key noch fehlen und führe mich durch die Einrichtung.
-Orientiere dich dabei an packages/revolte-deploy-tools/docs/ki-anweisung.md.
+Orientiere dich dabei an vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md.
 ```
 
 ---
@@ -107,7 +107,7 @@ Ich habe ddev start ausgeführt.
 
 Prüfe ob ddev auth ssh ausgeführt wurde, ob die SSH-Profile in homeadditions vorhanden sind,
 und ob die Verbindung zu den konfigurierten Umgebungen funktioniert.
-Orientiere dich dabei an packages/revolte-deploy-tools/docs/ki-anweisung.md.
+Orientiere dich dabei an vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md.
 ```
 
 ---
