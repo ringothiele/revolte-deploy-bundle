@@ -1,0 +1,51 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Revolte\DeployTools\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/ContaoManager/'
+            - '../src/RevolteDeployBundle.php'
+            - '../src/Provider/ProviderProfileInterface.php'
+
+    Revolte\DeployTools\Service\DeployConfigResolver:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployDoctorCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployCheckCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployInitCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\ContentPullCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\ContentPushCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployStatusCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployCodeCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\DeployRollbackCommand: ~
+
+    Revolte\DeployTools\Command\DeployFullCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'

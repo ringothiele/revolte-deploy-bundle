@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# Revolte Deploy — Projekt-Setup
+#
+# Legt eine neue lokale Contao-Entwicklungsumgebung an:
+# DDEV initialisieren + leeres Contao installieren
+#
+# Verwendung (im leeren Projektverzeichnis ausführen):
+#   bash revolte-setup
+
+set -euo pipefail
+
+# ── Farben ────────────────────────────────────────────────────────────────────
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; B='\033[0;34m'; NC='\033[0m'
+ok()   { echo -e " ${G}✓${NC} $*"; }
+warn() { echo -e " ${Y}!${NC} $*"; }
+err()  { echo -e " ${R}✗${NC} $*"; }
+step() { echo -e "\n${B}── $* ${NC}"; }
+
+echo ""
+echo -e "${B}=== Revolte Deploy — Projekt-Setup ===${NC}"
+echo ""
+
+# ── Voraussetzungen prüfen ────────────────────────────────────────────────────
+step "Voraussetzungen"
+
+MISSING=0
+for cmd in ddev git ssh; do
+    if command -v "$cmd" &>/dev/null; then
+        ok "$cmd gefunden"
+    else
+        err "$cmd nicht gefunden — bitte installieren"
+        MISSING=1
+    fi
+done
+
+if [ "$MISSING" -eq 1 ]; then
+    echo ""
+    echo "Fehlende Tools installieren und erneut ausführen."
+    exit 1
+fi
+
+PROJECT_DIR="$(pwd)"
+
+if [ -f "$PROJECT_DIR/composer.json" ]; then
+    warn "composer.json existiert bereits."
+    read -rp "   Trotzdem fortfahren? [j/N]: " CONTINUE
+    [[ "${CONTINUE,,}" == "j" ]] || exit 0
+fi
+
+# ── Projektkonfiguration ──────────────────────────────────────────────────────
+step "Projektkonfiguration"
+
+DEFAULT_NAME="$(basename "$PROJECT_DIR")"
+read -rp "Projektname [$DEFAULT_NAME]: " PROJECT_NAME
+PROJECT_NAME="${PROJECT_NAME:-$DEFAULT_NAME}"
+
+echo ""
+echo "Contao-Version:"
+echo "  1) 5.7 LTS  (empfohlen, PHP 8.3)"
+echo "  2) 5.3 LTS  (PHP 8.1)"
+echo "  3) 4.13 LTS (PHP 8.1)"
+read -rp "Auswahl [1]: " CONTAO_CHOICE
+
+case "${CONTAO_CHOICE:-1}" in
+    2) CONTAO_VERSION="5.3.*"; PHP_DEFAULT="8.1"; DOCROOT_DEFAULT="public" ;;
+    3) CONTAO_VERSION="4.13.*"; PHP_DEFAULT="8.1"; DOCROOT_DEFAULT="web" ;;
+    *) CONTAO_VERSION="5.7.*"; PHP_DEFAULT="8.3"; DOCROOT_DEFAULT="public" ;;
+esac
+
+read -rp "PHP-Version [$PHP_DEFAULT]: " PHP_VERSION
+PHP_VERSION="${PHP_VERSION:-$PHP_DEFAULT}"
+
+read -rp "Webroot [$DOCROOT_DEFAULT]: " DOCROOT
+DOCROOT="${DOCROOT:-$DOCROOT_DEFAULT}"
+
+read -rp "MariaDB-Version [11.8]: " MARIADB_VERSION
+MARIADB_VERSION="${MARIADB_VERSION:-11.8}"
+
+# ── Zusammenfassung ───────────────────────────────────────────────────────────
+echo ""
+echo "Zusammenfassung:"
+echo "  Projekt:  $PROJECT_NAME"
+echo "  Contao:   $CONTAO_VERSION"
+echo "  PHP:      $PHP_VERSION"
+echo "  Webroot:  $DOCROOT"
+echo "  MariaDB:  $MARIADB_VERSION"
+echo "  Ordner:   $PROJECT_DIR"
+echo ""
+read -rp "Starten? [J/n]: " CONFIRM
+[[ "${CONFIRM,,}" != "n" ]] || exit 0
+
+# ── DDEV ──────────────────────────────────────────────────────────────────────
+step "DDEV initialisieren"
+
+ddev config \
+    --project-name="$PROJECT_NAME" \
+    --project-type=php \
+    --php-version="$PHP_VERSION" \
+    --database="mariadb:$MARIADB_VERSION" \
+    --docroot="$DOCROOT" \
+    --webserver-type=apache-fpm
+
+ok "DDEV konfiguriert"
+
+# ── Adminer Add-on ────────────────────────────────────────────────────────────
+step "Adminer Add-on"
+
+ddev add-on get ddev/ddev-adminer
+ok "Adminer konfiguriert (wird beim Start aktiv)"
+
+# ── DDEV starten ──────────────────────────────────────────────────────────────
+step "DDEV starten"
+
+ddev start
+ok "DDEV gestartet"
+
+# ── Contao installieren ───────────────────────────────────────────────────────
+step "Contao installieren (contao/managed-edition:$CONTAO_VERSION)"
+
+# Script temporär aus dem Projektordner entfernen — composer create-project
+# (und DDEV-Wrapper) erlauben nur leere Verzeichnisse
+if [ -f "$PROJECT_DIR/revolte-setup" ]; then
+    mv "$PROJECT_DIR/revolte-setup" /tmp/revolte-setup-running
+fi
+
+ddev composer create "contao/managed-edition:$CONTAO_VERSION" --no-interaction
+ok "Contao installiert"
+
+# ── .env.local anlegen ────────────────────────────────────────────────────────
+step "Umgebungsvariablen (.env.local)"
+
+cat > "$PROJECT_DIR/.env.local" << 'EOF'
+DATABASE_URL="mysql://db:db@db:3306/db"
+MAILER_DSN="smtp://localhost:1025"
+EOF
+ok ".env.local angelegt (DATABASE_URL + MAILER_DSN)"
+
+# ── Contao Manager ────────────────────────────────────────────────────────────
+step "Contao Manager"
+
+ddev exec "wget -q -O ${DOCROOT}/contao-manager.phar.php https://download.contao.org/contao-manager/stable/contao-manager.phar"
+ok "contao-manager.phar.php heruntergeladen"
+
+# ── Fertig ────────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${G}=== Setup abgeschlossen ===${NC}"
+echo ""
+echo "Verfügbare URLs:"
+echo -e "  Frontend:        ${B}https://${PROJECT_NAME}.ddev.site/${NC}"
+echo -e "  Backend:         ${B}https://${PROJECT_NAME}.ddev.site/contao${NC}"
+echo -e "  Contao Manager:  ${B}https://${PROJECT_NAME}.ddev.site/contao-manager.phar.php${NC}"
+echo -e "  Adminer + Mailpit: URLs via${B} ddev describe${NC}"
+echo ""
+echo "Nächste Schritte:"
+echo ""
+echo "  1. revolte-deploy-tools als packages/revolte-deploy-tools/ ins Projekt kopieren"
+echo "     und als dev-Abhängigkeit eintragen:"
+echo ""
+echo '     ddev composer config repositories.revolte-deploy-tools '"'"'{"type":"path","url":"./packages/revolte-deploy-tools","options":{"symlink":false}}'"'"
+echo '     ddev composer require --dev "revolte/contao-deploy-tools:*@dev"'
+echo ""
+echo "  2. Konfiguration anlegen:"
+echo "     cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml"
+echo ""
+echo "  3. Je nach Fall weiter:"
+echo -e "     ${B}Neues Projekt:${NC}        revolte:deploy:init <env>"
+echo -e "     ${B}Repo + Server:${NC}        revolte:deploy:content:pull <env>"
+echo -e "     ${B}Legacy (kein Repo):${NC}   Erst Repo + Deploy Key einrichten, dann content:pull"
+echo ""
+echo "  Alle Commands: APP_ENV=dev php vendor/bin/contao-console revolte:deploy:*"
+echo ""

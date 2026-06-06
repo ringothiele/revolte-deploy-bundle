@@ -1,0 +1,146 @@
+# Revolte Deploy – Projektkonfiguration
+#
+# Diese Datei gehört ins Repository (keine Secrets eintragen).
+# Secrets (SSH-Keys, Passwörter) bleiben in ~/.ssh/config und .env.local.
+#
+# Empfohlene SSH-Profilkonvention in ~/.ssh/config:
+#   Host {projektname}-stage  →  Eintrag mit HostName, User, IdentityFile
+#   Host {projektname}-live   →  Eintrag mit HostName, User, IdentityFile
+#
+# Key-Namenskonvention: ~/.ssh/revolte/{projektname}_{umgebung}_ed25519
+
+project: mein-projekt
+provider: hetzner
+transport: git
+
+git:
+  remote: origin
+  repository: git@github.com:revolte/mein-projekt.git
+
+environments:
+
+  stage:
+    ssh_profile: mein-projekt-stage
+    remote_path: /www/htdocs/meinprojekt/stage
+    branch: develop
+    allowed_branches:
+      - develop
+      - "feature/*"
+    php_cli: auto
+    # deploy_guard: true
+    # Schutz vor versehentlichem Deploy. Wenn aktiv, muss auf dem Server eine
+    # Freigabedatei vorhanden sein, bevor ein Deploy erlaubt wird:
+    #   .allow_deploy_code  → für revolte:deploy:code
+    #   .allow_deploy_full  → für revolte:deploy:full
+    # Freigabe erteilen (Beispiel):
+    #   ssh mein-projekt-stage "touch /www/htdocs/meinprojekt/stage/.allow_deploy_code"
+    # Optionen:
+    #   deploy_guard: true               → Datei muss vorhanden sein, bleibt nach Deploy bestehen
+    #   deploy_guard:
+    #     single_use: true               → Datei wird nach erfolgreichem Deploy automatisch gelöscht
+    #                                      (empfohlen für live — jeder Deploy braucht erneute Freigabe)
+
+  live:
+    ssh_profile: mein-projekt-live
+    remote_path: /www/htdocs/meinprojekt/live
+    branch: main
+    allowed_branches:
+      - main
+      - master
+    php_cli: auto
+    # deploy_guard:
+    #   single_use: true
+
+files:
+  # Verzeichnisse, die nicht im Git-Repo liegen, aber beim Full Deploy übertragen werden (via rsync).
+  # Glob-Muster relativ zum Projektroot — * steht für den Projektnamen in files/.
+  # Nicht vorhandene lokale Verzeichnisse werden übersprungen.
+  transfer_on_full_deploy:
+    - files/*/content/
+    - files/*/downloads/
+    - files/*/user_upload/
+
+rollback:
+  backup_path: ~/revolte-deploy-backups
+  keep_backups: 3
+  no_data_tables:
+    - tl_log
+    - tl_search
+    - tl_search_index
+    - tl_search_term
+    - tl_session
+    - tl_undo
+
+content_pull:
+  # git pull vor dem Content-Sync (empfohlen bei mehreren Entwicklern)
+  git_pull: true
+  # Verzeichnisse, die von Remote nach lokal geholt werden (rsync)
+  directories:
+    - files/*/content/
+    - files/*/downloads/
+    - files/*/user_upload/
+    - files/*/layout/hotfix/   # gitignored — für schnelle CSS-Hotfixes auf stage/live
+  # Lokale Felder, die nach dem DB-Import wiederhergestellt werden (z.B. lokale Domain)
+  preserve_local_fields:
+    tl_page:
+      - dns
+
+database:
+  # Felder, die beim Full Deploy nicht überschrieben werden (umgebungsspezifische Werte).
+  # Der Wert auf dem Zielserver wird nach dem DB-Import wiederhergestellt.
+  # Primärschlüssel ist immer "id".
+  preserve_on_full_deploy:
+    tl_page:
+      - dns
+  #   - useSSL
+  # tl_settings:
+  #   - adminEmail
+
+profiles:
+
+  code:
+    description: "Nur Code, Templates, Konfiguration und definierte Layout-Assets"
+    default: disallow
+    rules:
+      - allow: /src/**
+      - allow: /contao/**
+      - allow: /config/**
+      - allow: /templates/**
+      - allow: /assets/**
+      - allow: /composer.json
+      - allow: /composer.lock
+      - allow: /public/bundles/**
+      - allow: /web/bundles/**
+      - allow: "/files/*/layout/**"
+      - allow: "/files/*/theme/**"
+      - allow: "/files/*/css/**"
+      - allow: "/files/*/js/**"
+      - disallow: /.env*
+      - disallow: /.allow_deploy_code
+      - disallow: /.allow_deploy_full
+      - disallow: /var/**
+      - disallow: /vendor/**
+      - disallow: /node_modules/**
+      - disallow: /.git/**
+      - disallow: /.ddev/**
+      - disallow: "/files/*/content/**"
+      - disallow: "/files/*/downloads/**"
+      - disallow: "/files/*/user_upload/**"
+
+  full:
+    description: "Vollständiger Projektstand ohne lokale Artefakte, Secrets und temporäre Dateien"
+    default: allow
+    rules:
+      - disallow: /.git/**
+      - disallow: /.ddev/**
+      - disallow: /.idea/**
+      - disallow: /.vscode/**
+      - disallow: /.env.local
+      - disallow: /.allow_deploy_code
+      - disallow: /.allow_deploy_full
+      - disallow: /.env.*.local
+      - disallow: /var/cache/**
+      - disallow: /var/log/**
+      - disallow: /node_modules/**
+      - disallow: /backups/**
+      - disallow: /deploy-backups/**
