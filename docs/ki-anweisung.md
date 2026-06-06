@@ -36,7 +36,8 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 **Passphrase/Passwort-Befehle — KI kann keine interaktive Eingabe machen:**
 
 - `ssh-keygen` — SSH-Key generieren (fragt nach Passphrase)
-- `ddev auth ssh` — SSH-Keys in ddev laden (fragt nach Passphrase)
+- `ssh-add ~/.ssh/revolte/KÜRZEL_...` — Key in Host-SSH-Agent laden (fragt nach Passphrase); muss vor `ddev auth ssh` ausgeführt werden
+- `ddev auth ssh` — geladene Host-Keys in ddev-Container übertragen (keine Passphrase, aber Schritt 2 muss vorher passiert sein)
 - `ssh-copy-id` — Key auf Server kopieren (fragt nach Server-Passwort)
 - `ddev restart` / `ddev start` — ddev-Containerverwaltung
 
@@ -114,7 +115,25 @@ Prüfe ob `.ddev/homeadditions/.ssh/config.d/` existiert und einen Eintrag für 
 ddev restart
 ```
 
-**Schritt 2 — SSH-Keys in ddev laden:**
+**Schritt 2 — Key in Host-SSH-Agent laden:**
+
+`ddev auth ssh` leitet nur Keys weiter, die bereits im SSH-Agent des Hosts geladen sind. Keys in Unterordnern wie `~/.ssh/revolte/` werden nicht automatisch gefunden.
+
+Entwickler ausführen lassen (fragt nach Passphrase):
+
+```bash
+ssh-add ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
+```
+
+Prüfen ob der Key geladen ist (KI führt selbst aus):
+
+```bash
+ssh-add -l
+```
+
+→ Der Key sollte in der Liste erscheinen. Falls nicht: `ssh-add`-Befehl wiederholen.
+
+**Schritt 3 — Keys in ddev-Container übertragen:**
 
 Entwickler ausführen lassen:
 
@@ -122,16 +141,16 @@ Entwickler ausführen lassen:
 ddev auth ssh
 ```
 
-Entwickler wird nach Passphrase gefragt — das ist normal.
+`ddev auth ssh` leitet alle im Host-Agent geladenen Keys in den ddev-Container weiter — keine erneute Passphrase-Eingabe.
 
-**Schritt 3 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
+**Schritt 4 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
 
 ```bash
 ddev exec ssh-add -l
 ```
 
-→ Zeigt die geladenen Keys. Prüfe ob der Key für dieses Projekt (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) in der Liste erscheint.  
-→ **nicht in Liste:** `ddev auth ssh` wurde übersprungen oder der Key liegt nicht in `~/.ssh/`. Ursache klären bevor weiterzumachen.
+→ Der Key (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) muss in der Liste erscheinen.  
+→ **nicht in Liste:** Schritt 2 und 3 wiederholen. Niemals versuchen, Keys direkt im Container zu laden — `~/.ssh/revolte/` ist dort nicht vorhanden.
 
 **Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus):**
 
