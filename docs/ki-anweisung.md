@@ -173,7 +173,7 @@ ddev exec ssh-add -l
 
 Der einzig korrekte Weg: `ssh-add` auf dem Host, dann `ddev auth ssh`.
 
-**Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus):**
+**Schritt 5 — Verbindung aus ddev testen (KI führt selbst aus):**
 
 ```bash
 ddev exec ssh PROFIL-NAME "echo OK"
@@ -239,10 +239,10 @@ ddev exec ssh PROFIL-NAME "ls ~/.ssh/id_ed25519_PROJEKTNAME_github 2>/dev/null &
 ```
 
 → **vorhanden:** weiter mit Schritt 2  
-→ **fehlt:** Entwickler ausführen lassen (kein Leerzeichen im `-C`-Kommentar wegen Quoting über SSH):
+→ **fehlt:** KI führt selbst aus (kein Leerzeichen im `-C`-Kommentar wegen Quoting über SSH):
 
 ```bash
-ssh PROFIL-NAME "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_PROJEKTNAME_github -N '' -C 'PROJEKTNAME-github-deploy-key'"
+ddev exec ssh PROFIL-NAME "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_PROJEKTNAME_github -N '' -C 'PROJEKTNAME-github-deploy-key'"
 ```
 
 ### 2. SSH-Config auf Server prüfen (KI führt selbst aus)
@@ -252,10 +252,10 @@ ddev exec ssh PROFIL-NAME "grep -q 'github-PROJEKTNAME' ~/.ssh/config 2>/dev/nul
 ```
 
 → **vorhanden:** weiter mit Schritt 3  
-→ **fehlt:** Entwickler ausführen lassen:
+→ **fehlt:** KI führt selbst aus:
 
 ```bash
-ssh PROFIL-NAME "printf '\nHost github-PROJEKTNAME\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_ed25519_PROJEKTNAME_github\n    IdentitiesOnly yes\n' >> ~/.ssh/config"
+ddev exec ssh PROFIL-NAME "printf '\nHost github-PROJEKTNAME\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/id_ed25519_PROJEKTNAME_github\n    IdentitiesOnly yes\n' >> ~/.ssh/config"
 ```
 
 ### 3. Deploy Key bei GitHub prüfen
@@ -278,10 +278,10 @@ ddev exec ssh PROFIL-NAME "ssh-keygen -F github.com 2>/dev/null && echo vorhande
 ```
 
 → **vorhanden:** weiter mit Schritt 5  
-→ **fehlt:** Entwickler ausführen lassen:
+→ **fehlt:** KI führt selbst aus:
 
 ```bash
-ssh PROFIL-NAME "ssh-keyscan github.com >> ~/.ssh/known_hosts"
+ddev exec ssh PROFIL-NAME "ssh-keyscan github.com >> ~/.ssh/known_hosts"
 ```
 
 ### 5. Verbindung zu GitHub testen (KI führt selbst aus)
