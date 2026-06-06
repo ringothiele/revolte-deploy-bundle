@@ -194,15 +194,21 @@ ddev exec ssh PROFIL-NAME "echo OK"
 
 **Wichtig:** `ssh-copy-id` vom WSL2-Host funktioniert in der Regel nicht, da der Server vom Host aus nicht direkt erreichbar ist. Stattdessen wird ein bestehender Serverzugang genutzt um den Key zu hinterlegen.
 
-**Schritt 1 — Public Key lesen (KI liest direkt):**
+Wenn der Key gerade erst neu generiert wurde, kann er noch nicht auf dem Server sein — den Test mit `ddev exec ssh ... "echo OK"` überspringen und direkt mit Schritt 2 anfangen.
 
-Lese die Datei `~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
+**Schritt 1 — Public Key lesen (KI führt selbst aus):**
+
+```bash
+cat ~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519.pub
+```
 
 **Schritt 2 — Bestehenden Serverzugang ermitteln:**
 
-Frag den Entwickler:
+Prüfe zuerst selbst: gibt es in `~/.ssh/config` bereits ein anderes SSH-Profil das auf denselben Server (gleicher HostName + Port + User) zeigt? Wenn ja, dieses nutzen.
 
-> "Hast du bereits SSH-Zugang zu diesem Server über ein anderes Profil — z. B. ein anderes Projekt auf demselben Server oder einen temporären Passwort-Login?"
+Falls unklar: Entwickler fragen:
+
+> "Hast du bereits SSH-Zugang zu diesem Server über ein anderes Profil — z. B. ein anderes Projekt auf demselben Server?"
 
 → **Ja, anderes SSH-Profil vorhanden:** Weiter mit Schritt 3a  
 → **Ja, Passwort-Login möglich:** Weiter mit Schritt 3b  
