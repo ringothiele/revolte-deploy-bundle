@@ -6,14 +6,19 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 
 ## SSH-Key-Konvention — immer einhalten
 
-Jeder Entwickler hat pro Projekt und Umgebung einen eigenen SSH-Key.  
-**Namensschema:** `~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`
+Ein Key pro Entwickler pro Server-Account — nicht pro Projekt.  
+Mehrere Projekte auf demselben Server-Account teilen sich denselben Key.
+
+**Namensschema:** `~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519`
 
 Kürzel im Team: `rt` (Ringo Thiele), `pl`, `sl`
 
-Beispiel: `rt_rhodetec_stage_ed25519` — nicht `rhodetec_stage_ed25519`.
+Beispiele:
+- `rt_revolte-labor_ed25519` — Ringo auf revolte-labor.de (alle Stage-Projekte)
+- `rt_kundenname_ed25519` — Ringo auf einem Kunden-Live-Server
 
-Prüfe zuerst ob ein Key mit dem richtigen Namen existiert, bevor du einen neuen vorschlägst.  
+Prüfe zuerst ob für diesen Server-Account bereits ein Key des Entwicklers existiert.  
+Wenn ja: diesen Key verwenden — keinen neuen erstellen.  
 Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlinks anzulegen.
 
 ---
@@ -71,23 +76,31 @@ Niemals `git push` ausführen. Commits sind ok — Push macht immer der Entwickl
 
 ## Ablauf: SSH-Key auf lokalem Entwickler-Rechner
 
-**Namensschema:** `KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`  
-Kürzel im Team: `rt` (Ringo), `pl`, `sl`
+Ein Key gilt pro Entwickler und Server-Account. Zuerst prüfen ob bereits ein passender Key existiert.
 
-**Prüfen (KI liest die Datei direkt):**
+**Schritt 1 — Vorhandenen Key ermitteln (KI liest `~/.ssh/config`):**
 
-Lese `~/.ssh/config` und prüfe ob ein passender `IdentityFile`-Eintrag für Entwickler + Projekt + Umgebung vorhanden ist.  
-Alternativ: lass den Entwickler ausführen:
+Prüfe ob in `~/.ssh/config` bereits ein Eintrag für denselben Server (gleicher HostName + Port + User) mit einem Key des Entwicklers existiert. Wenn ja: diesen Key auch für das neue Projekt verwenden — weiter mit SSH-Config.
+
+**Schritt 2 — Falls kein Key für diesen Server-Account existiert:**
+
+Lass den Entwickler ausführen:
 
 ```bash
-ls ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
+ls ~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
 ```
 
-→ **vorhanden:** weiter mit SSH-Config prüfen  
+→ **vorhanden:** weiter mit SSH-Config  
 → **fehlt:** Entwickler ausführen lassen:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
+ssh-keygen -t ed25519 -f ~/.ssh/KÜRZEL_SERVERACCOUNT_ed25519 -C "KÜRZEL-SERVERACCOUNT"
+```
+
+Beispiel für Ringo auf revolte-labor.de:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/rt_revolte-labor_ed25519 -C "rt-revolte-labor"
 ```
 
 ---
