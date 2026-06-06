@@ -40,13 +40,21 @@ Falls es fehlt, legt SSH es automatisch beim ersten `ssh-keygen` an.
 
 ## SSH-Key erstellen
 
-Für jedes Projekt/Server-Kombination empfehlen wir einen eigenen Key.  
-So bleibt es übersichtlich und du kannst einzelne Keys sperren ohne andere zu beeinflussen.
+Für jede Kombination aus **Entwickler, Projekt und Umgebung** empfehlen wir einen eigenen Key.  
+So ist im Server-Log erkennbar wer deployed hat, und einzelne Keys lassen sich sperren ohne andere zu beeinflussen.
+
+**Namensschema:** `KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`
+
+Entwicklerkürzel im Team: `rt` (Ringo), `pl`, `sl`
+
+Beispiele:
+- `rt_kundea_stage_ed25519` — Ringo, Projekt kundea, Stage-Server
+- `pl_kundea_live_ed25519` — pl, Projekt kundea, Live-Server
 
 ### Prüfen ob bereits ein Key existiert
 
 ```bash
-ls ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "nicht vorhanden"
+ls ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "nicht vorhanden"
 ```
 
 → **vorhanden:** weiter mit [SSH-Config einrichten](#sshconfig-einrichten)  
@@ -61,13 +69,13 @@ mkdir -p ~/.ssh/revolte
 ### Key generieren
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519 -C "PROJEKTNAME-UMGEBUNG-deploy-key"
+ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
 ```
 
-Beispiel für das Projekt `kundea`, Umgebung `stage`:
+Beispiel für Ringo, Projekt `kundea`, Umgebung `stage`:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/kundea_stage_ed25519 -C "kundea-stage-deploy-key"
+ssh-keygen -t ed25519 -f ~/.ssh/revolte/rt_kundea_stage_ed25519 -C "rt-kundea-stage"
 ```
 
 Du wirst nach einer **Passphrase** gefragt. Empfehlung: eine setzen und im Passwortmanager speichern.  
@@ -102,7 +110,7 @@ Host kundea-stage
     HostName 78.46.130.9
     Port 222
     User revolc
-    IdentityFile ~/.ssh/revolte/kundea_stage_ed25519
+    IdentityFile ~/.ssh/revolte/rt_kundea_stage_ed25519
     IdentitiesOnly yes
 ```
 
@@ -130,7 +138,7 @@ ssh PROFIL-NAME "echo OK" 2>/dev/null && echo "Verbindung funktioniert" || echo 
 ### Public Key anzeigen
 
 ```bash
-cat ~/.ssh/revolte/kundea_stage_ed25519.pub
+cat ~/.ssh/revolte/rt_kundea_stage_ed25519.pub
 ```
 
 Die Ausgabe sieht ungefähr so aus:
@@ -144,7 +152,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... kundea-stage-deploy-key
 Einfachste Methode — benötigt einmalig Passwort-Login (sofern der Server das erlaubt):
 
 ```bash
-ssh-copy-id -i ~/.ssh/revolte/kundea_stage_ed25519.pub -p 222 revolc@78.46.130.9
+ssh-copy-id -i ~/.ssh/revolte/rt_kundea_stage_ed25519.pub -p 222 revolc@78.46.130.9
 ```
 
 Falls Passwort-Login deaktiviert ist: jemanden mit bestehendem Zugang bitten,  
@@ -161,7 +169,7 @@ Der **ssh-agent** merkt sich die entsperrten Keys für die aktuelle Sitzung.
 
 ```bash
 eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/revolte/kundea_stage_ed25519
+ssh-add ~/.ssh/revolte/rt_kundea_stage_ed25519
 ```
 
 Du wirst einmal nach der Passphrase gefragt. Danach klappt SSH in dieser Terminal-Sitzung ohne erneute Eingabe.
@@ -354,7 +362,7 @@ git:
 
 ## Checkliste für ein neues Projekt
 
-- [ ] Key generieren: `ssh-keygen -t ed25519 -f ~/.ssh/revolte/PROJEKT_UMGEBUNG_ed25519`
+- [ ] Key generieren: `ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKT_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKT-UMGEBUNG"`
 - [ ] Eintrag in `~/.ssh/config` anlegen (mit korrektem Port!)
 - [ ] Public Key auf Server eintragen (`ssh-copy-id` oder manuell)
 - [ ] Verbindung testen: `ssh PROFIL-NAME "echo OK"`

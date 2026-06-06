@@ -57,13 +57,16 @@ Niemals `git push` ausführen. Commits sind ok — Push macht immer der Entwickl
 
 ## Ablauf: SSH-Key auf lokalem Entwickler-Rechner
 
+**Namensschema:** `KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`  
+Kürzel im Team: `rt` (Ringo), `pl`, `sl`
+
 **Prüfen (KI liest die Datei direkt):**
 
-Lese `~/.ssh/config` und prüfe ob ein passender `IdentityFile`-Eintrag für das Projekt vorhanden ist.  
+Lese `~/.ssh/config` und prüfe ob ein passender `IdentityFile`-Eintrag für Entwickler + Projekt + Umgebung vorhanden ist.  
 Alternativ: lass den Entwickler ausführen:
 
 ```bash
-ls ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
+ls ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" || echo "fehlt"
 ```
 
 → **vorhanden:** weiter mit SSH-Config prüfen  
@@ -71,7 +74,7 @@ ls ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519 2>/dev/null && echo "vorhanden" |
 
 ```bash
 mkdir -p ~/.ssh/revolte
-ssh-keygen -t ed25519 -f ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519 -C "PROJEKTNAME-UMGEBUNG-deploy-key"
+ssh-keygen -t ed25519 -f ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519 -C "KÜRZEL-PROJEKTNAME-UMGEBUNG"
 ```
 
 ---
@@ -90,7 +93,7 @@ Host PROFIL-NAME
     HostName IP-ODER-HOSTNAME
     Port PORT
     User BENUTZERNAME
-    IdentityFile ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519
+    IdentityFile ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519
     IdentitiesOnly yes
 ```
 
@@ -127,7 +130,7 @@ Entwickler wird nach Passphrase gefragt — das ist normal.
 ddev exec ssh-add -l
 ```
 
-→ Zeigt die geladenen Keys. Prüfe ob der Key für dieses Projekt (`PROJEKTNAME_UMGEBUNG_ed25519`) in der Liste erscheint.  
+→ Zeigt die geladenen Keys. Prüfe ob der Key für dieses Projekt (`KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519`) in der Liste erscheint.  
 → **nicht in Liste:** `ddev auth ssh` wurde übersprungen oder der Key liegt nicht in `~/.ssh/`. Ursache klären bevor weiterzumachen.
 
 **Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus):**
@@ -173,7 +176,7 @@ ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authori
 Entwickler ausführen lassen (fragt nach Server-Passwort):
 
 ```bash
-ssh-copy-id -i ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
+ssh-copy-id -i ~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
 ```
 
 **Schritt 4 — Verbindung prüfen (KI führt selbst aus):**
