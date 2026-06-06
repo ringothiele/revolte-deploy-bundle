@@ -30,14 +30,16 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 
 ## Was der Entwickler ausführen muss
 
-Diese Befehle brauchen eine Passphrase oder Passwort-Eingabe — die KI kann sie nicht selbst ausführen:
+Diese Befehle brauchen eine Passphrase, Passwort-Eingabe oder Browserinteraktion:
 
 - `ssh-keygen` — SSH-Key auf dem lokalen Rechner generieren
-- `ssh-copy-id` — Public Key auf Server kopieren (braucht einmalig Passwort-Login)
-- `ddev auth ssh` — SSH-Keys in den ddev-Container laden
+- `ssh-copy-id` — Public Key auf Server kopieren, nur wenn Passwort-Login möglich und Server vom Host erreichbar
+- `ddev auth ssh` — SSH-Keys in den ddev-Container laden (fragt nach Passphrase)
 - `ddev restart` — nach Änderungen an `.ddev/homeadditions/`
-- `ssh PROFIL "echo OK"` — SSH-Verbindungstest vom Host (außerhalb ddev)
 - Deploy Keys in GitHub eintragen (Browser)
+
+**Nicht vom WSL2-Host aus möglich:**  
+`ssh-copy-id` schlägt fehl wenn der Server vom WSL2-Host nicht direkt erreichbar ist. In diesem Fall den Key über ein bestehendes SSH-Profil oder das Server-Control-Panel hinterlegen (→ Ablauf "Public Key auf Server hinterlegen").
 
 ---
 
@@ -99,7 +101,7 @@ ddev restart
 
 **Schritt 2 — SSH-Keys in ddev laden:**
 
-Die KI kann nicht prüfen ob Keys bereits geladen sind. Immer nach `ddev start` oder `ddev restart`:
+Entwickler ausführen lassen:
 
 ```bash
 ddev auth ssh
@@ -107,33 +109,69 @@ ddev auth ssh
 
 Entwickler wird nach Passphrase gefragt — das ist normal.
 
-**Schritt 3 — Verbindung aus ddev testen (KI führt selbst aus):**
+**Schritt 3 — Prüfen ob Key im ddev-Agent geladen ist (KI führt selbst aus):**
+
+```bash
+ddev exec ssh-add -l
+```
+
+→ Zeigt die geladenen Keys. Prüfe ob der Key für dieses Projekt (`PROJEKTNAME_UMGEBUNG_ed25519`) in der Liste erscheint.  
+→ **nicht in Liste:** `ddev auth ssh` wurde übersprungen oder der Key liegt nicht in `~/.ssh/`. Ursache klären bevor weiterzumachen.
+
+**Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus):**
 
 ```bash
 ddev exec ssh PROFIL-NAME "echo OK"
 ```
 
 → **OK:** SSH funktioniert  
-→ **Fehler:** Ursache analysieren (Key nicht geladen? Profil nicht in homeadditions? Known-hosts-Problem?)
+→ **Permission denied:** Key noch nicht auf Server hinterlegt → Ablauf "Public Key auf Server hinterlegen"  
+→ **Anderer Fehler:** Ursache analysieren (Profil nicht in homeadditions? Known-hosts-Problem?)
 
 ---
 
 ## Ablauf: Public Key auf Server hinterlegen
 
-**Prüfen (KI führt selbst aus, nach ddev auth ssh):**
+**Wichtig:** `ssh-copy-id` vom WSL2-Host funktioniert in der Regel nicht, da der Server vom Host aus nicht direkt erreichbar ist. Stattdessen wird ein bestehender Serverzugang genutzt um den Key zu hinterlegen.
+
+**Schritt 1 — Public Key lesen (KI liest direkt):**
+
+Lese die Datei `~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
+
+**Schritt 2 — Bestehenden Serverzugang ermitteln:**
+
+Frag den Entwickler:
+
+> "Hast du bereits SSH-Zugang zu diesem Server über ein anderes Profil — z. B. ein anderes Projekt auf demselben Server oder einen temporären Passwort-Login?"
+
+→ **Ja, anderes SSH-Profil vorhanden:** Weiter mit Schritt 3a  
+→ **Ja, Passwort-Login möglich:** Weiter mit Schritt 3b  
+→ **Nein:** Entwickler muss den Public Key über das Server-Control-Panel (z. B. Hetzner Robot / Plesk) manuell in `~/.ssh/authorized_keys` eintragen. Key-Inhalt anzeigen und warten.
+
+**Schritt 3a — Key über bestehendes SSH-Profil hinterlegen (KI führt selbst aus):**
+
+```bash
+ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+(Ersetze `INHALT-DES-PUBLIC-KEY` durch den tatsächlichen Inhalt aus Schritt 1.)
+
+**Schritt 3b — Key über Passwort-Login hinterlegen:**
+
+Entwickler ausführen lassen (fragt nach Server-Passwort):
+
+```bash
+ssh-copy-id -i ~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
+```
+
+**Schritt 4 — Verbindung prüfen (KI führt selbst aus):**
 
 ```bash
 ddev exec ssh PROFIL-NAME "echo OK"
 ```
 
-→ **OK:** Key ist bereits hinterlegt, weiter  
-→ **Fehler "Permission denied":** Key fehlt auf Server, Entwickler ausführen lassen:
-
-```bash
-ssh-copy-id PROFIL-NAME
-```
-
-Falls `ssh-copy-id` nicht funktioniert (Passwort-Login deaktiviert): Public Key anzeigen und Entwickler bitten, ihn manuell in `~/.ssh/authorized_keys` auf dem Server einzutragen.
+→ **OK:** Key erfolgreich hinterlegt  
+→ **Permission denied:** Key wurde nicht korrekt eingetragen — `authorized_keys` auf Server prüfen
 
 ---
 
