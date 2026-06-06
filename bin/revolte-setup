@@ -161,7 +161,7 @@ echo '     ddev composer config repositories.revolte-deploy-tools '"'"'{"type":"
 echo '     ddev composer require --dev "revolte/contao-deploy-tools:@dev"'
 echo ""
 echo "  2. Konfiguration anlegen:"
-echo "     cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml"
+echo "     mkdir -p config && cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml"
 echo ""
 echo "  3. ddev auth ssh ausführen (SSH-Keys für Deploy-Commands laden)"
 echo ""
