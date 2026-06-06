@@ -151,7 +151,7 @@ ddev exec ssh PROFIL-NAME "echo OK"
 
 **Schritt 1 — Public Key lesen (KI liest direkt):**
 
-Lese die Datei `~/.ssh/revolte/PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
+Lese die Datei `~/.ssh/revolte/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub` und merke dir den Inhalt.
 
 **Schritt 2 — Bestehenden Serverzugang ermitteln:**
 
