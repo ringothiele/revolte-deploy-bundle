@@ -52,33 +52,33 @@ aktiv. Beispiel: `ddev exec php vendor/bin/contao-console revolte:deploy:status 
 
 ### Diagnose & Status
 
-| Befehl | Beschreibung | Typischer Einsatz |
-|--------|-------------|-------------------|
-| `revolte:deploy:status <env>` | Zeigt welcher Commit auf welcher Umgebung deployed ist | Vor dem Deploy prüfen ob Stage und Local übereinstimmen |
-| `revolte:deploy:doctor` | Prüft die lokale Entwicklungsumgebung | Bei Problemen als erster Schritt zur Diagnose |
-| `revolte:deploy:check <env>` | Prüft eine Zielumgebung vor dem Deployment | Vor init oder full ausführen um Probleme früh zu erkennen |
+| Befehl                                | Beschreibung                                                                  | Typischer Einsatz                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `revolte:deploy:status <env>`         | Zeigt welcher Commit auf welcher Umgebung deployed ist                        | Vor dem Deploy prüfen ob Stage und Local übereinstimmen     |
+| `revolte:deploy:doctor`               | Prüft die lokale Entwicklungsumgebung                                         | Bei Problemen als erster Schritt zur Diagnose               |
+| `revolte:deploy:check <env>`          | Prüft eine Zielumgebung vor dem Deployment                                    | Vor init oder full ausführen um Probleme früh zu erkennen   |
 | `revolte:deploy:explain <env> <pfad>` | Erklärt warum ein Pfad in einem Deploy-Profil erlaubt oder ausgeschlossen ist | Wenn Dateien unerwartet deployed oder nicht deployed werden |
 
 ### Einrichtung & Deployment
 
-| Befehl | Beschreibung | Typischer Einsatz |
-|--------|-------------|-------------------|
-| `revolte:deploy:init <env>` | Richtet die Release-Struktur auf dem Server ein und klont das Git-Repository | Einmalig bei der ersten Einrichtung einer Umgebung |
-| `revolte:deploy:code <env>` | Deployt neuen Code per Git ohne Datenbankmigrationen | Schnelles Update wenn nur Code geändert wurde |
-| `revolte:deploy:full <env>` | Deployt Code + führt Composer install und Datenbankmigrationen aus | Standard-Deploy bei Abhängigkeitsänderungen oder Contao-Updates |
-| `revolte:deploy:rollback <env>` | Rollback auf ein früheres Backup | Wenn ein Deploy Probleme verursacht hat |
+| Befehl                          | Beschreibung                                                                 | Typischer Einsatz                                               |
+| ------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `revolte:deploy:init <env>`     | Richtet die Release-Struktur auf dem Server ein und klont das Git-Repository | Einmalig bei der ersten Einrichtung einer Umgebung              |
+| `revolte:deploy:code <env>`     | Deployt neuen Code per Git ohne Datenbankmigrationen                         | Schnelles Update wenn nur Code geändert wurde                   |
+| `revolte:deploy:full <env>`     | Deployt Code + führt Composer install und Datenbankmigrationen aus           | Standard-Deploy bei Abhängigkeitsänderungen oder Contao-Updates |
+| `revolte:deploy:rollback <env>` | Rollback auf ein früheres Backup                                             | Wenn ein Deploy Probleme verursacht hat                         |
 
 ### Content-Synchronisierung
 
-| Befehl | Beschreibung | Typischer Einsatz |
-|--------|-------------|-------------------|
-| `revolte:deploy:content:pull <env>` | Zieht Datenbank und Upload-Dateien vom Server lokal | Lokalen Stand aktuell halten, nach einem Live-Deploy |
+| Befehl                              | Beschreibung                                          | Typischer Einsatz                                       |
+| ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
+| `revolte:deploy:content:pull <env>` | Zieht Datenbank und Upload-Dateien vom Server lokal   | Lokalen Stand aktuell halten, nach einem Live-Deploy    |
 | `revolte:deploy:content:push <env>` | Überträgt lokale Datenbank und Dateien auf den Server | Lokal aufgebaute Inhalte auf Stage oder Live übertragen |
 
 ### Legacy
 
-| Befehl | Beschreibung | Typischer Einsatz |
-|--------|-------------|-------------------|
+| Befehl                           | Beschreibung                                      | Typischer Einsatz                                               |
+| -------------------------------- | ------------------------------------------------- | --------------------------------------------------------------- |
 | `revolte:legacy:code:pull <env>` | Synct Code eines Legacy-Projekts vom Server lokal | Szenario 4: Erstmalige lokale Einrichtung eines Legacy-Projekts |
 
 ---
@@ -123,7 +123,7 @@ vor — ausführen tust immer du.
 
 Du startest von Grund auf: kein lokales Projekt, kein GitHub-Repository, kein Server-Setup.
 
-→ [Manuell](szenario-1-neues-projekt-manuell.md) · [Mit KI](szenario-1-neues-projekt-ki.md)
+→ [Manuell](IT:szenario-1-neues-projekt-manuell.md) · [Mit KI](IT:szenario-1-neues-projekt-ki.md)
 
 ---
 
@@ -132,7 +132,7 @@ Du startest von Grund auf: kein lokales Projekt, kein GitHub-Repository, kein Se
 Das Projekt läuft bereits lokal mit ddev, hat aber noch kein GitHub-Repository und keine
 Deployment-Infrastruktur. revolte-deploy-tools wird nachträglich eingerichtet.
 
-→ [Manuell](szenario-2-bestehendes-projekt-manuell.md) · [Mit KI](szenario-2-bestehendes-projekt-ki.md)
+→ [Manuell](IT:szenario-2-bestehendes-projekt-manuell.md) · [Mit KI](IT:szenario-2-bestehendes-projekt-ki.md)
 
 ---
 
@@ -142,7 +142,7 @@ Git-Repository und Server-Setup existieren bereits. Du richtest das Projekt auf 
 Rechner ein. Vor dem Start zwingend mit dem bisherigen Entwickler absprechen —
 Branching-Strategie und laufende Arbeiten klären.
 
-→ [Manuell](szenario-3-projekt-uebernehmen-manuell.md) · [Mit KI](szenario-3-projekt-uebernehmen-ki.md)
+→ [Manuell](IT:szenario-3-projekt-uebernehmen-manuell.md) · [Mit KI](IT:szenario-3-projekt-uebernehmen-ki.md)
 
 ---
 
@@ -152,7 +152,7 @@ Das Projekt existiert bisher nur auf dem Server: kein Git-Repository, keine Depl
 Das Projekt wird lokal gespiegelt, in Git überführt und mit einer sauberen
 Deploy-Infrastruktur versehen. Der bestehende Server-Ordner wird dabei nicht verändert.
 
-→ [Manuell](szenario-4-legacy-projekt-manuell.md) · [Mit KI](szenario-4-legacy-projekt-ki.md)
+→ [Manuell](IT:szenario-4-legacy-projekt-manuell.md) · [Mit KI](IT:szenario-4-legacy-projekt-ki.md)
 
 ---
 
@@ -162,7 +162,7 @@ Stage läuft bereits — jetzt soll eine Live-Umgebung (oder umgekehrt) dazukomm
 `revolte-ssh-setup` wird erneut ausgeführt, die neue Umgebung wird initialisiert und
 der erste Deploy ausgeführt.
 
-→ [Manuell](szenario-5-zweite-umgebung-manuell.md) · [Mit KI](szenario-5-zweite-umgebung-ki.md)
+→ [Manuell](IT:szenario-5-zweite-umgebung-manuell.md) · [Mit KI](IT:szenario-5-zweite-umgebung-ki.md)
 
 ---
 
@@ -172,4 +172,4 @@ Das Projekt soll auf einen neuen Server umgezogen werden. Temporär existieren d
 Umgebungen gleichzeitig: Stage, Live (alt) und Live (neu). Der Wechsel erfolgt durch
 Umbiegen der Domain am Ende.
 
-→ [Manuell](szenario-6-server-migration-manuell.md) · [Mit KI](szenario-6-server-migration-ki.md)
+→ [Manuell](IT:szenario-6-server-migration-manuell.md) · [Mit KI](IT:szenario-6-server-migration-ki.md)
