@@ -87,7 +87,12 @@ class LegacyCodePullCommand extends Command
         $io->section('Verbindung');
 
         if (!$this->sshChecker->testConnection($sshProfile)) {
-            $io->error(sprintf('SSH-Verbindung zu "%s" fehlgeschlagen.', $sshProfile));
+            $isInsideDdev = isset($_SERVER['IS_DDEV_PROJECT']) || isset($_ENV['IS_DDEV_PROJECT']);
+            $hint = $isInsideDdev
+                ? 'SSH-Key nicht im ddev-Agent — bitte im Host-Terminal ausführen: ddev auth ssh'
+                : sprintf('SSH-Key nicht im Agent — bitte ausführen: ssh-add ~/.ssh/<key> und dann erneut versuchen');
+
+            $io->error([sprintf('SSH-Verbindung zu "%s" fehlgeschlagen.', $sshProfile), $hint]);
 
             return Command::FAILURE;
         }
@@ -157,12 +162,22 @@ class LegacyCodePullCommand extends Command
         // ── Composer install ──────────────────────────────────────────────────
         if (!$skipComposer) {
             $io->section('Composer install');
-            $io->writeln(' Installiere Abhängigkeiten (ddev exec composer install) ...');
 
-            $isDdev = is_dir($this->projectRoot . '/.ddev');
-            $composerCmd = $isDdev
-                ? ['ddev', 'exec', 'composer', 'install', '--no-interaction']
-                : ['composer', 'install', '--no-interaction'];
+            $isInsideContainer = isset($_SERVER['IS_DDEV_PROJECT']) || isset($_ENV['IS_DDEV_PROJECT']);
+            $hasDdev = is_dir($this->projectRoot . '/.ddev');
+
+            if ($isInsideContainer) {
+                // Läuft bereits im ddev-Container — composer direkt ausführen
+                $composerCmd = ['composer', 'install', '--no-interaction'];
+                $io->writeln(' Installiere Abhängigkeiten (composer install) ...');
+            } elseif ($hasDdev) {
+                // Läuft auf dem Host — via ddev in den Container
+                $composerCmd = ['ddev', 'exec', 'composer', 'install', '--no-interaction'];
+                $io->writeln(' Installiere Abhängigkeiten (ddev exec composer install) ...');
+            } else {
+                $composerCmd = ['composer', 'install', '--no-interaction'];
+                $io->writeln(' Installiere Abhängigkeiten (composer install) ...');
+            }
 
             $composer = new Process($composerCmd, cwd: $this->projectRoot, timeout: 300);
             $composer->run(function (string $type, string $buffer) use ($io): void {
