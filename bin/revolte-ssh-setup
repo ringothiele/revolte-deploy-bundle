@@ -293,45 +293,21 @@ if [[ ! -f "$YAML_FILE" ]]; then
     warn "und rufe das Script erneut auf."
 else
     # Prüfen ob Umgebung bereits eingetragen ist
-    if python3 -c "
-import re, sys
-content = open('$YAML_FILE').read()
-if re.search(r'^  $ENV_NAME:', content, re.MULTILINE):
-    sys.exit(0)
-else:
-    sys.exit(1)
-" 2>/dev/null; then
+    if grep -q "^  ${ENV_NAME}:" "$YAML_FILE" 2>/dev/null; then
         # Aktuelle Werte lesen
-        CURRENT_PROFIL=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
-import re, os
-content = open(os.environ['YAML_FILE']).read()
-env = os.environ['ENV_NAME']
-m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
-block = m.group(1) if m else ''
-v = re.search(r'    ssh_profile: (.+)', block)
-print(v.group(1).strip() if v else '')
-PYEOF
-)
-        CURRENT_PATH=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
-import re, os
-content = open(os.environ['YAML_FILE']).read()
-env = os.environ['ENV_NAME']
-m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
-block = m.group(1) if m else ''
-v = re.search(r'    remote_path: (.+)', block)
-print(v.group(1).strip() if v else '')
-PYEOF
-)
-        CURRENT_BRANCH=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
-import re, os
-content = open(os.environ['YAML_FILE']).read()
-env = os.environ['ENV_NAME']
-m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
-block = m.group(1) if m else ''
-v = re.search(r'    branch: (.+)', block)
-print(v.group(1).strip() if v else '')
-PYEOF
-)
+        CURRENT_PROFIL=$(awk -v env="$ENV_NAME" '
+            /^  [a-z]/ { in_env = ($0 ~ ("^  " env ":")) }
+            in_env && /^    ssh_profile: / { line = $0; sub(/^    ssh_profile: /, "", line); print line; exit }
+        ' "$YAML_FILE")
+        CURRENT_PATH=$(awk -v env="$ENV_NAME" '
+            /^  [a-z]/ { in_env = ($0 ~ ("^  " env ":")) }
+            in_env && /^    remote_path: / { line = $0; sub(/^    remote_path: /, "", line); print line; exit }
+        ' "$YAML_FILE")
+        CURRENT_BRANCH=$(awk -v env="$ENV_NAME" '
+            /^  [a-z]/ { in_env = ($0 ~ ("^  " env ":")) }
+            in_env && /^    branch: / { line = $0; sub(/^    branch: /, "", line); print line; exit }
+        ' "$YAML_FILE")
+
         echo ""
         ok "Umgebung '$ENV_NAME' bereits in revolte_deploy.yaml:"
         echo "     ssh_profile:  ${CURRENT_PROFIL:-(nicht gesetzt)}"
@@ -348,31 +324,17 @@ PYEOF
             read -rp " branch [${CURRENT_BRANCH}]: " NEW_BRANCH
             NEW_BRANCH="${NEW_BRANCH:-$CURRENT_BRANCH}"
 
-            YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" \
-            NEW_PROFIL="$NEW_PROFIL" NEW_PATH="$NEW_PATH" NEW_BRANCH="$NEW_BRANCH" \
-            python3 - <<'PYEOF'
-import re, os
-
-yaml_file  = os.environ['YAML_FILE']
-env_name   = os.environ['ENV_NAME']
-new_profil = os.environ['NEW_PROFIL']
-new_path   = os.environ['NEW_PATH']
-new_branch = os.environ['NEW_BRANCH']
-
-with open(yaml_file, 'r') as f:
-    content = f.read()
-
-pattern = r'(^  ' + env_name + r':\n)((?:    .*\n?)*)'
-match = re.search(pattern, content, re.MULTILINE)
-if match:
-    block = match.group(2)
-    block = re.sub(r'(    ssh_profile: ).*', r'\g<1>' + new_profil, block)
-    block = re.sub(r'(    remote_path: ).*',  r'\g<1>' + new_path,   block)
-    block = re.sub(r'(    branch: ).*',        r'\g<1>' + new_branch, block)
-    content = content[:match.start(2)] + block + content[match.end(2):]
-    with open(yaml_file, 'w') as f:
-        f.write(content)
-PYEOF
+            tmp=$(mktemp)
+            awk -v env="$ENV_NAME" \
+                -v new_profil="$NEW_PROFIL" \
+                -v new_path="$NEW_PATH" \
+                -v new_branch="$NEW_BRANCH" '
+                /^  [a-z]/ { in_env = ($0 ~ ("^  " env ":")) }
+                in_env && /^    ssh_profile: / { print "    ssh_profile: " new_profil; next }
+                in_env && /^    remote_path: / { print "    remote_path: " new_path;   next }
+                in_env && /^    branch: /      { print "    branch: "      new_branch; next }
+                { print }
+            ' "$YAML_FILE" > "$tmp" && mv "$tmp" "$YAML_FILE"
             ok "Umgebung '$ENV_NAME' aktualisiert."
         else
             ok "Keine Änderungen an revolte_deploy.yaml."
@@ -380,28 +342,24 @@ PYEOF
     else
         info "Trage Umgebung '$ENV_NAME' in revolte_deploy.yaml ein..."
 
-        BLOCK="\\n  ${ENV_NAME}:\\n    ssh_profile: ${PROFIL}\\n    remote_path: ${REMOTE_PATH}\\n    branch: ${ENV_BRANCH}\\n    allowed_branches:\\n      - ${ENV_BRANCH}\\n    php_cli: auto"
-
-        python3 - <<PYEOF
-import re
-
-yaml_file = '$YAML_FILE'
-env_name = '$ENV_NAME'
-block = '\n  ${ENV_NAME}:\n    ssh_profile: ${PROFIL}\n    remote_path: ${REMOTE_PATH}\n    branch: ${ENV_BRANCH}\n    allowed_branches:\n      - ${ENV_BRANCH}\n    php_cli: auto\n'
-
-with open(yaml_file, 'r') as f:
-    content = f.read()
-
-new_content = re.sub(
-    r'(^environments:\s*\n)',
-    r'\1' + block,
-    content,
-    flags=re.MULTILINE
-)
-
-with open(yaml_file, 'w') as f:
-    f.write(new_content)
-PYEOF
+        tmp=$(mktemp)
+        awk -v env="$ENV_NAME" \
+            -v profil="$PROFIL" \
+            -v path="$REMOTE_PATH" \
+            -v branch="$ENV_BRANCH" '
+            /^environments:/ {
+                print
+                print "  " env ":"
+                print "    ssh_profile: " profil
+                print "    remote_path: " path
+                print "    branch: " branch
+                print "    allowed_branches:"
+                print "      - " branch
+                print "    php_cli: auto"
+                next
+            }
+            { print }
+        ' "$YAML_FILE" > "$tmp" && mv "$tmp" "$YAML_FILE"
         ok "Umgebung '$ENV_NAME' eingetragen."
         warn "Bitte prüfe den Eintrag in $YAML_FILE und passe allowed_branches bei Bedarf an."
     fi
