@@ -62,10 +62,10 @@ Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlink
 - `ddev exec php bin/console revolte:deploy:status` — Deploy-Stand prüfen
 - `ddev exec php bin/console revolte:deploy:doctor` — Lokale Umgebung prüfen
 - `ddev exec php bin/console revolte:deploy:check <env>` — Zielumgebung prüfen
-- `ddev exec ssh PROFIL "echo OK"` — SSH-Verbindung aus ddev testen
-- `ddev exec ssh PROFIL "ls DATEI 2>/dev/null && echo vorhanden || echo fehlt"` — Dateien auf Server prüfen
+- `ddev exec ssh -o BatchMode=yes PROFIL "echo OK"` — SSH-Verbindung testen (nur wenn Key bereits auf Server eingetragen ist)
+- `ddev exec ssh -o BatchMode=yes PROFIL "ls DATEI 2>/dev/null && echo vorhanden || echo fehlt"` — Dateien auf Server prüfen
 - `ddev exec ssh-add -l` — prüfen welche Keys im ddev-Agent geladen sind
-- `ddev exec ssh PROFIL "cat ~/.ssh/KEYNAME.pub"` — Public Key auf Server lesen
+- `ddev exec ssh -o BatchMode=yes PROFIL "cat ~/.ssh/KEYNAME.pub"` — Public Key auf Server lesen
 - Lokale Dateien lesen (z. B. `~/.ssh/config`, `config/revolte_deploy.yaml`)
 - Git-Befehle lokal: `git status`, `git log`, `git add`, `git commit` etc.
 - Deploy-Commands via ddev: `ddev exec php bin/console revolte:deploy:*`
@@ -78,6 +78,7 @@ Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlink
 - `ddev auth ssh` — Keys aus `~/.ssh/` in ddev-Container laden (fragt nach Passphrase für jeden Key)
 - `ssh-copy-id` — Key auf Server kopieren (fragt nach Server-Passwort)
 - `ddev restart` / `ddev start` — ddev-Containerverwaltung
+- Jeder `ddev exec ssh`-Befehl bei dem noch kein Key hinterlegt ist — SSH fällt auf Passwort-Auth zurück, die KI kann das Passwort nicht eingeben und mehrfache Fehlversuche lösen **fail2ban** aus. Diese Befehle immer dem Entwickler zum Ausführen geben.
 
 **SSH zum Server — nur über Profilnamen, nie über IP/Port direkt:**
 
@@ -246,7 +247,17 @@ Falls unklar: Entwickler fragen:
 → **Ja, Passwort-Login möglich:** Weiter mit Schritt 3b  
 → **Nein:** Entwickler muss den Public Key über das Server-Control-Panel (z. B. Hetzner Robot / Plesk) manuell in `~/.ssh/authorized_keys` eintragen. Key-Inhalt anzeigen und warten.
 
-**Schritt 3a — Key über bestehendes SSH-Profil hinterlegen (KI führt selbst aus):**
+**Schritt 3a — Key über bestehendes SSH-Profil hinterlegen:**
+
+Voraussetzung: Das bestehende Profil muss bereits ohne Passwort funktionieren (`ddev exec ssh -o BatchMode=yes BESTEHENDES-PROFIL "echo OK"` gibt OK zurück).
+
+→ **Funktioniert ohne Passwort:** KI führt selbst aus:
+
+```bash
+ddev exec ssh -o BatchMode=yes BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+→ **Fragt nach Passwort:** Befehl dem Entwickler zum Ausführen geben (fragt einmal nach Server-Passwort):
 
 ```bash
 ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
@@ -259,17 +270,23 @@ ddev exec ssh BESTEHENDES-PROFIL "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authori
 Entwickler ausführen lassen (fragt nach Server-Passwort):
 
 ```bash
-ssh-copy-id -i ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@HOSTNAME
+ddev exec ssh PROFIL-NAME "echo 'INHALT-DES-PUBLIC-KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-**Schritt 4 — Verbindung prüfen (KI führt selbst aus):**
+**Schritt 4 — Verbindung prüfen:**
+
+Erst fragen: "Hat der Befehl aus Schritt 3 ohne Fehlermeldung abgeschlossen?"
+
+→ **Ja:** KI führt selbst aus:
 
 ```bash
 ddev exec ssh -o BatchMode=yes PROFIL-NAME "echo OK"
 ```
 
+→ **Nein / unklar:** Entwickler anleiten, auf dem Server `cat ~/.ssh/authorized_keys` zu prüfen ob der Key eingetragen ist — erst dann testen.
+
 → **OK:** Key erfolgreich hinterlegt  
-→ **Permission denied:** Key wurde nicht korrekt eingetragen — `authorized_keys` auf Server prüfen
+→ **Permission denied:** Key wurde nicht korrekt eingetragen — `authorized_keys` auf Server prüfen. Nicht wiederholt testen — weiteres fail2ban-Risiko.
 
 ---
 
