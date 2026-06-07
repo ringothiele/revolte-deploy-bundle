@@ -24,7 +24,8 @@
         }
     },
     "bin": [
-        "bin/revolte-setup"
+        "bin/revolte-setup",
+        "bin/revolte-ssh-setup"
     ],
     "extra": {
         "contao-manager-plugin": "Revolte\\DeployTools\\ContaoManager\\Plugin"

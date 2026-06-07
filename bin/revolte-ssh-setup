@@ -1,0 +1,326 @@
+#!/usr/bin/env bash
+# revolte-ssh-setup — SSH-Einrichtung für eine Deploy-Umgebung
+#
+# Muss im Projektroot ausgeführt werden:
+#   vendor/bin/revolte-ssh-setup
+#
+# Idempotent: kann jederzeit erneut aufgerufen werden (für stage, live, Serverumzug).
+# Prüft jeden Schritt bevor er ausgeführt wird.
+
+set -euo pipefail
+
+# ── Farben ────────────────────────────────────────────────────────────────────
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; B='\033[0;34m'; NC='\033[0m'
+ok()    { echo -e " ${G}✓${NC}  $*"; }
+warn()  { echo -e " ${Y}!${NC}  $*"; }
+err()   { echo -e " ${R}✗${NC}  $*"; exit 1; }
+info()  { echo -e " ${B}→${NC}  $*"; }
+step()  { echo -e "\n${B}── $* ──${NC}"; }
+
+pause() {
+    echo ""
+    echo -e " ${Y}AKTION ERFORDERLICH${NC}"
+    echo -e " $1"
+    echo ""
+    read -rp " Drücke Enter wenn fertig... "
+}
+
+# ── Voraussetzungen ───────────────────────────────────────────────────────────
+[[ -f ".ddev/config.yaml" ]] || err "Nicht im Projektroot. Bitte aus dem Projektverzeichnis aufrufen."
+
+echo ""
+echo -e "${B}=== Revolte SSH-Setup ===${NC}"
+echo -e " Richtet SSH-Zugang für eine Deploy-Umgebung ein."
+echo -e " Idempotent — kann für jede Umgebung neu aufgerufen werden."
+echo ""
+
+# ── Eingaben ─────────────────────────────────────────────────────────────────
+step "Eingaben"
+
+read -rp " Umgebungsname (z.B. stage, live): " ENV_NAME
+read -rp " SSH-Profil (z.B. rhodetec-stage): " PROFIL
+read -rp " Server-Hostname oder IP: " SRV_HOST
+read -rp " Server-Port [222]: " SRV_PORT
+SRV_PORT="${SRV_PORT:-222}"
+read -rp " Server-Benutzer: " SRV_USER
+read -rp " Remote-Pfad auf dem Server: " REMOTE_PATH
+read -rp " Branch für diese Umgebung [main]: " ENV_BRANCH
+ENV_BRANCH="${ENV_BRANCH:-main}"
+read -rp " Dein Entwicklerkürzel (rt, pl, sl): " KUERZEL
+read -rp " Server-Account-Name für Key-Benennung (z.B. revolte-labor): " SRV_ACCOUNT
+
+echo ""
+info "Umgebung:    $ENV_NAME"
+info "SSH-Profil:  $PROFIL"
+info "Server:      $SRV_USER@$SRV_HOST:$SRV_PORT"
+info "Remote-Pfad: $REMOTE_PATH"
+info "Branch:      $ENV_BRANCH"
+echo ""
+read -rp " Alles korrekt? [j/N] " CONFIRM
+[[ "${CONFIRM,,}" == "j" ]] || err "Abgebrochen."
+
+# ── SSH-Key ───────────────────────────────────────────────────────────────────
+step "SSH-Key"
+
+KEY_NAME="${KUERZEL}_${SRV_ACCOUNT}_ed25519"
+KEY_PATH="$HOME/.ssh/${KEY_NAME}"
+KEY_PATH_EXPANDED="${KEY_PATH/#\~/$HOME}"
+
+# Alle vorhandenen Keys nach Namenskonvention suchen
+FOUND_KEYS=()
+while IFS= read -r -d '' f; do
+    FOUND_KEYS+=("$f")
+done < <(find "$HOME/.ssh" -maxdepth 1 -name "${KUERZEL}_*_ed25519" -not -name "*.pub" -print0 2>/dev/null || true)
+
+CHOSEN_KEY=""
+
+if [[ ${#FOUND_KEYS[@]} -gt 0 ]]; then
+    echo ""
+    warn "Vorhandene Keys (${KUERZEL}_*_ed25519):"
+    for k in "${FOUND_KEYS[@]}"; do
+        echo "    $k"
+    done
+    echo ""
+
+    # Konventionsgerechter Key zuerst vorschlagen
+    if [[ -f "$KEY_PATH_EXPANDED" ]]; then
+        read -rp " Key '$KEY_NAME' gefunden — soll dieser verwendet werden? [j/N] " USE_KEY
+        if [[ "${USE_KEY,,}" == "j" ]]; then
+            CHOSEN_KEY="$KEY_PATH_EXPANDED"
+        fi
+    fi
+
+    # Anderen vorhandenen Key wählen
+    if [[ -z "$CHOSEN_KEY" ]]; then
+        read -rp " Anderen vorhandenen Key verwenden? Pfad eingeben oder Enter für neuen Key: " CUSTOM_KEY
+        if [[ -n "$CUSTOM_KEY" && -f "$CUSTOM_KEY" ]]; then
+            CHOSEN_KEY="$CUSTOM_KEY"
+            KEY_NAME=$(basename "$CHOSEN_KEY")
+            KEY_PATH_EXPANDED="$CHOSEN_KEY"
+        fi
+    fi
+fi
+
+# Neuen Key anlegen
+if [[ -z "$CHOSEN_KEY" ]]; then
+    info "Neuen Key anlegen: $KEY_PATH"
+    pause "ssh-keygen -t ed25519 -f $KEY_PATH_EXPANDED -C \"${KUERZEL}-${SRV_ACCOUNT}\""
+    [[ -f "$KEY_PATH_EXPANDED" ]] || err "Key nicht gefunden: $KEY_PATH_EXPANDED"
+    CHOSEN_KEY="$KEY_PATH_EXPANDED"
+    KEY_NAME=$(basename "$CHOSEN_KEY")
+    ok "Key angelegt: $KEY_NAME"
+else
+    ok "Key wird verwendet: $CHOSEN_KEY"
+fi
+
+PUBKEY=$(cat "${CHOSEN_KEY}.pub")
+
+# ── ~/.ssh/config ─────────────────────────────────────────────────────────────
+step "~/.ssh/config"
+
+touch "$HOME/.ssh/config"
+chmod 600 "$HOME/.ssh/config"
+
+if grep -q "^Host ${PROFIL}$" "$HOME/.ssh/config" 2>/dev/null; then
+    ok "Profil '$PROFIL' bereits vorhanden."
+else
+    info "Trage Profil '$PROFIL' ein..."
+    cat >> "$HOME/.ssh/config" <<EOF
+
+Host ${PROFIL}
+    HostName ${SRV_HOST}
+    Port ${SRV_PORT}
+    User ${SRV_USER}
+    IdentityFile ${CHOSEN_KEY}
+    IdentitiesOnly yes
+EOF
+    ok "Profil eingetragen."
+fi
+
+# ── ddev homeadditions ────────────────────────────────────────────────────────
+step "ddev homeadditions"
+
+HOMEADDITIONS=".ddev/homeadditions/.ssh/config.d/revolte.conf"
+mkdir -p "$(dirname "$HOMEADDITIONS")"
+touch "$HOMEADDITIONS"
+
+NEEDS_RESTART=false
+if grep -q "^Host ${PROFIL}$" "$HOMEADDITIONS" 2>/dev/null; then
+    ok "Profil '$PROFIL' bereits in homeadditions."
+else
+    info "Trage Profil in $HOMEADDITIONS ein..."
+    cat >> "$HOMEADDITIONS" <<EOF
+
+Host ${PROFIL}
+    HostName ${SRV_HOST}
+    Port ${SRV_PORT}
+    User ${SRV_USER}
+    IdentitiesOnly yes
+EOF
+    ok "Profil eingetragen."
+    NEEDS_RESTART=true
+fi
+
+if [[ "$NEEDS_RESTART" == true ]]; then
+    pause "ddev restart\n\n ddev muss neu gestartet werden damit die homeadditions geladen werden."
+fi
+
+# ── ddev auth ssh ─────────────────────────────────────────────────────────────
+step "Keys in ddev-Agent laden"
+
+pause "ddev auth ssh\n\n Lädt alle Keys aus ~/.ssh/ in den ddev-SSH-Agent.\n Gibt die Passphrase für '${KEY_NAME}' ein wenn gefragt."
+
+# Key im Agent prüfen
+info "Prüfe ob '$KEY_NAME' im ddev-Agent geladen ist..."
+AGENT_KEYS=$(ddev exec ssh-add -l 2>/dev/null || true)
+
+if echo "$AGENT_KEYS" | grep -q "${KEY_NAME%.pub}"; then
+    ok "Key ist im ddev-Agent."
+else
+    echo ""
+    err "Key '${KEY_NAME}' nicht im ddev-Agent gefunden.\n\n Geladene Keys:\n$AGENT_KEYS\n\n Stelle sicher dass der Key direkt in ~/.ssh/ liegt (kein Unterordner)\n und die Passphrase korrekt war. Dann das Script neu starten."
+fi
+
+# ── SSH testen ────────────────────────────────────────────────────────────────
+step "SSH-Verbindung testen"
+
+info "Teste Verbindung zu '$PROFIL' (BatchMode — kein Passwort-Fallback)..."
+SSH_RESULT=$(ddev exec ssh -o BatchMode=yes "$PROFIL" "echo OK" 2>&1 || true)
+
+if echo "$SSH_RESULT" | grep -q "^OK"; then
+    ok "SSH-Verbindung funktioniert."
+else
+    warn "Verbindung fehlgeschlagen: $SSH_RESULT"
+    warn "Key muss noch auf dem Server hinterlegt werden."
+
+    # Bestehendes funktionierendes Profil auf demselben Server suchen
+    step "Key auf Server hinterlegen"
+    WORKING_PROFILE=""
+
+    if [[ -f "$HOME/.ssh/config" ]]; then
+        # Alle Profile mit gleichem HostName+Port+User einlesen
+        cur_host=""; cur_hn=""; cur_port=""; cur_user=""
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            stripped="${line#"${line%%[![:space:]]*}"}"
+            if [[ "$stripped" =~ ^Host[[:space:]]+(.*) ]]; then
+                # Vorherigen Block auswerten
+                if [[ -n "$cur_hn" && "$cur_hn" == "$SRV_HOST" &&
+                      "${cur_port:-22}" == "$SRV_PORT" &&
+                      "$cur_user" == "$SRV_USER" &&
+                      "$cur_host" != "$PROFIL" ]]; then
+                    TEST=$(ddev exec ssh -o BatchMode=yes "$cur_host" "echo OK" 2>&1 || true)
+                    if echo "$TEST" | grep -q "^OK"; then
+                        WORKING_PROFILE="$cur_host"
+                    fi
+                fi
+                cur_host="${BASH_REMATCH[1]// /}"; cur_hn=""; cur_port=""; cur_user=""
+            elif [[ "$stripped" =~ ^HostName[[:space:]]+(.*) ]]; then
+                cur_hn="${BASH_REMATCH[1]}"
+            elif [[ "$stripped" =~ ^Port[[:space:]]+(.*) ]]; then
+                cur_port="${BASH_REMATCH[1]}"
+            elif [[ "$stripped" =~ ^User[[:space:]]+(.*) ]]; then
+                cur_user="${BASH_REMATCH[1]}"
+            fi
+        done < "$HOME/.ssh/config"
+
+        # Letzten Block noch prüfen
+        if [[ -n "$cur_hn" && "$cur_hn" == "$SRV_HOST" &&
+              "${cur_port:-22}" == "$SRV_PORT" &&
+              "$cur_user" == "$SRV_USER" &&
+              "$cur_host" != "$PROFIL" && -z "$WORKING_PROFILE" ]]; then
+            TEST=$(ddev exec ssh -o BatchMode=yes "$cur_host" "echo OK" 2>&1 || true)
+            if echo "$TEST" | grep -q "^OK"; then
+                WORKING_PROFILE="$cur_host"
+            fi
+        fi
+    fi
+
+    if [[ -n "$WORKING_PROFILE" ]]; then
+        info "Bestehendes Profil '$WORKING_PROFILE' funktioniert — trage Key automatisch ein..."
+        ddev exec ssh -o BatchMode=yes "$WORKING_PROFILE" \
+            "mkdir -p ~/.ssh && echo '${PUBKEY}' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+        ok "Key eingetragen über '$WORKING_PROFILE'."
+    else
+        warn "Kein bestehendes Profil ohne Passwort auf diesem Server verfügbar."
+        echo ""
+        echo -e " Führe diesen Befehl selbst aus — er fragt einmal nach dem Server-Passwort:"
+        echo ""
+        echo "   ddev exec ssh $PROFIL \"mkdir -p ~/.ssh && echo '${PUBKEY}' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\""
+        echo ""
+        pause "Befehl oben ausführen, dann Enter drücken."
+    fi
+
+    # Erneut testen
+    info "Teste Verbindung erneut..."
+    SSH_RESULT2=$(ddev exec ssh -o BatchMode=yes "$PROFIL" "echo OK" 2>&1 || true)
+    if echo "$SSH_RESULT2" | grep -q "^OK"; then
+        ok "SSH-Verbindung funktioniert jetzt."
+    else
+        echo ""
+        err "SSH-Verbindung funktioniert immer noch nicht.\n Prüfe authorized_keys auf dem Server manuell.\n Kein weiterer Verbindungsversuch — fail2ban-Schutz."
+    fi
+fi
+
+# ── revolte_deploy.yaml ───────────────────────────────────────────────────────
+step "revolte_deploy.yaml"
+
+YAML_FILE="config/revolte_deploy.yaml"
+
+if [[ ! -f "$YAML_FILE" ]]; then
+    warn "$YAML_FILE nicht gefunden — YAML-Update übersprungen."
+    warn "Leg die Datei aus vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist an"
+    warn "und rufe das Script erneut auf."
+else
+    # Prüfen ob Umgebung bereits eingetragen ist
+    if python3 -c "
+import re, sys
+content = open('$YAML_FILE').read()
+if re.search(r'^  $ENV_NAME:', content, re.MULTILINE):
+    sys.exit(0)
+else:
+    sys.exit(1)
+" 2>/dev/null; then
+        ok "Umgebung '$ENV_NAME' bereits in revolte_deploy.yaml."
+    else
+        info "Trage Umgebung '$ENV_NAME' in revolte_deploy.yaml ein..."
+
+        BLOCK="\\n  ${ENV_NAME}:\\n    ssh_profile: ${PROFIL}\\n    remote_path: ${REMOTE_PATH}\\n    branch: ${ENV_BRANCH}\\n    allowed_branches:\\n      - ${ENV_BRANCH}\\n    php_cli: auto"
+
+        python3 - <<PYEOF
+import re
+
+yaml_file = '$YAML_FILE'
+env_name = '$ENV_NAME'
+block = '\n  ${ENV_NAME}:\n    ssh_profile: ${PROFIL}\n    remote_path: ${REMOTE_PATH}\n    branch: ${ENV_BRANCH}\n    allowed_branches:\n      - ${ENV_BRANCH}\n    php_cli: auto\n'
+
+with open(yaml_file, 'r') as f:
+    content = f.read()
+
+new_content = re.sub(
+    r'(^environments:\s*\n)',
+    r'\1' + block,
+    content,
+    flags=re.MULTILINE
+)
+
+with open(yaml_file, 'w') as f:
+    f.write(new_content)
+PYEOF
+        ok "Umgebung '$ENV_NAME' eingetragen."
+        warn "Bitte prüfe den Eintrag in $YAML_FILE und passe allowed_branches bei Bedarf an."
+    fi
+fi
+
+# ── Fertig ────────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${G}=== SSH-Einrichtung abgeschlossen ===${NC}"
+echo ""
+ok "Profil '$PROFIL' ist einsatzbereit."
+echo ""
+info "Nächste Schritte:"
+echo "   1. revolte_deploy.yaml prüfen und ggf. anpassen"
+echo "   2. ddev exec php bin/console revolte:deploy:doctor"
+echo "   3. ddev exec php bin/console revolte:deploy:check $ENV_NAME"
+echo "   4. ddev exec php bin/console revolte:deploy:init $ENV_NAME"
+echo ""
