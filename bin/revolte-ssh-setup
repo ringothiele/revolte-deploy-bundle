@@ -301,7 +301,82 @@ if re.search(r'^  $ENV_NAME:', content, re.MULTILINE):
 else:
     sys.exit(1)
 " 2>/dev/null; then
-        ok "Umgebung '$ENV_NAME' bereits in revolte_deploy.yaml."
+        # Aktuelle Werte lesen
+        CURRENT_PROFIL=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
+import re, os
+content = open(os.environ['YAML_FILE']).read()
+env = os.environ['ENV_NAME']
+m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
+block = m.group(1) if m else ''
+v = re.search(r'    ssh_profile: (.+)', block)
+print(v.group(1).strip() if v else '')
+PYEOF
+)
+        CURRENT_PATH=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
+import re, os
+content = open(os.environ['YAML_FILE']).read()
+env = os.environ['ENV_NAME']
+m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
+block = m.group(1) if m else ''
+v = re.search(r'    remote_path: (.+)', block)
+print(v.group(1).strip() if v else '')
+PYEOF
+)
+        CURRENT_BRANCH=$(YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" python3 - <<'PYEOF'
+import re, os
+content = open(os.environ['YAML_FILE']).read()
+env = os.environ['ENV_NAME']
+m = re.search(r'^  ' + env + r':\n((?:    .*\n?)*)', content, re.MULTILINE)
+block = m.group(1) if m else ''
+v = re.search(r'    branch: (.+)', block)
+print(v.group(1).strip() if v else '')
+PYEOF
+)
+        echo ""
+        ok "Umgebung '$ENV_NAME' bereits in revolte_deploy.yaml:"
+        echo "     ssh_profile:  ${CURRENT_PROFIL:-(nicht gesetzt)}"
+        echo "     remote_path:  ${CURRENT_PATH:-(nicht gesetzt)}"
+        echo "     branch:       ${CURRENT_BRANCH:-(nicht gesetzt)}"
+        echo ""
+        read -rp " Werte aktualisieren? [j/N] " UPDATE_YAML
+
+        if [[ "${UPDATE_YAML,,}" == "j" ]]; then
+            read -rp " ssh_profile [${CURRENT_PROFIL}]: " NEW_PROFIL
+            NEW_PROFIL="${NEW_PROFIL:-$CURRENT_PROFIL}"
+            read -rp " remote_path [${CURRENT_PATH}]: " NEW_PATH
+            NEW_PATH="${NEW_PATH:-$CURRENT_PATH}"
+            read -rp " branch [${CURRENT_BRANCH}]: " NEW_BRANCH
+            NEW_BRANCH="${NEW_BRANCH:-$CURRENT_BRANCH}"
+
+            YAML_FILE="$YAML_FILE" ENV_NAME="$ENV_NAME" \
+            NEW_PROFIL="$NEW_PROFIL" NEW_PATH="$NEW_PATH" NEW_BRANCH="$NEW_BRANCH" \
+            python3 - <<'PYEOF'
+import re, os
+
+yaml_file  = os.environ['YAML_FILE']
+env_name   = os.environ['ENV_NAME']
+new_profil = os.environ['NEW_PROFIL']
+new_path   = os.environ['NEW_PATH']
+new_branch = os.environ['NEW_BRANCH']
+
+with open(yaml_file, 'r') as f:
+    content = f.read()
+
+pattern = r'(^  ' + env_name + r':\n)((?:    .*\n?)*)'
+match = re.search(pattern, content, re.MULTILINE)
+if match:
+    block = match.group(2)
+    block = re.sub(r'(    ssh_profile: ).*', r'\g<1>' + new_profil, block)
+    block = re.sub(r'(    remote_path: ).*',  r'\g<1>' + new_path,   block)
+    block = re.sub(r'(    branch: ).*',        r'\g<1>' + new_branch, block)
+    content = content[:match.start(2)] + block + content[match.end(2):]
+    with open(yaml_file, 'w') as f:
+        f.write(content)
+PYEOF
+            ok "Umgebung '$ENV_NAME' aktualisiert."
+        else
+            ok "Keine Änderungen an revolte_deploy.yaml."
+        fi
     else
         info "Trage Umgebung '$ENV_NAME' in revolte_deploy.yaml ein..."
 
