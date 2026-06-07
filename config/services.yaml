@@ -49,3 +49,7 @@ services:
     Revolte\DeployTools\Command\DeployFullCommand:
         arguments:
             $projectRoot: '%revolte_deploy.project_root%'
+
+    Revolte\DeployTools\Command\LegacyCodePullCommand:
+        arguments:
+            $projectRoot: '%revolte_deploy.project_root%'
