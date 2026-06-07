@@ -18,6 +18,7 @@ Verboten — auch wenn es "schneller" erscheint:
 - `ddev exec ssh -p PORT user@IP "..."` — umgeht das Profil, löst Passwort-Versuche und damit **fail2ban** aus
 - `ssh ...` ohne `ddev exec` — WSL2-Host hat keine direkte Verbindung zum Server
 - SSH-Verbindung versuchen wenn das Profil noch nicht in homeadditions eingetragen ist
+- SSH-Test ohne `-o BatchMode=yes` — ohne dieses Flag fragt SSH interaktiv nach dem Passwort, mehrfache Fehlversuche lösen **fail2ban** aus
 
 **Bei Verstoß gegen diese Regel kann die IP des Servers gesperrt werden (fail2ban).**
 
@@ -209,8 +210,10 @@ Der einzig korrekte Weg: Key in `~/.ssh/` → `ddev auth ssh` → `ddev exec ssh
 
 **Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus — erst nach Schritt 3 bestätigt):**
 
+`BatchMode=yes` ist Pflicht — verhindert interaktive Passwort-Abfragen die fail2ban auslösen würden.
+
 ```bash
-ddev exec ssh PROFIL-NAME "echo OK"
+ddev exec ssh -o BatchMode=yes PROFIL-NAME "echo OK"
 ```
 
 → **OK:** SSH funktioniert  
@@ -262,7 +265,7 @@ ssh-copy-id -i ~/.ssh/KÜRZEL_PROJEKTNAME_UMGEBUNG_ed25519.pub -p PORT BENUTZER@
 **Schritt 4 — Verbindung prüfen (KI führt selbst aus):**
 
 ```bash
-ddev exec ssh PROFIL-NAME "echo OK"
+ddev exec ssh -o BatchMode=yes PROFIL-NAME "echo OK"
 ```
 
 → **OK:** Key erfolgreich hinterlegt  
