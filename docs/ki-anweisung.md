@@ -4,6 +4,25 @@ Diese Datei ist eine Anweisung an die KI. Sie beschreibt, wie die KI einen Entwi
 
 ---
 
+## ABSOLUTES VERBOT — vor jeder SSH-Aktion lesen
+
+**Die KI darf niemals eine SSH-Verbindung zum Server versuchen, bevor alle drei Voraussetzungen erfüllt sind:**
+
+1. Ein `Host PROFIL-NAME`-Eintrag existiert in `.ddev/homeadditions/.ssh/config.d/revolte.conf`
+2. Der Entwickler hat `ddev auth ssh` ausgeführt
+3. `ddev exec ssh-add -l` zeigt den richtigen Key in der Liste
+
+**Erst wenn alle drei Punkte bestätigt sind, darf die KI `ddev exec ssh PROFIL-NAME "..."` ausführen.**
+
+Verboten — auch wenn es "schneller" erscheint:
+- `ddev exec ssh -p PORT user@IP "..."` — umgeht das Profil, löst Passwort-Versuche und damit **fail2ban** aus
+- `ssh ...` ohne `ddev exec` — WSL2-Host hat keine direkte Verbindung zum Server
+- SSH-Verbindung versuchen wenn das Profil noch nicht in homeadditions eingetragen ist
+
+**Bei Verstoß gegen diese Regel kann die IP des Servers gesperrt werden (fail2ban).**
+
+---
+
 ## SSH-Key-Konvention — immer einhalten
 
 Ein Key pro Entwickler pro Server-Account — nicht pro Projekt.  
@@ -188,7 +207,7 @@ ddev exec ssh-add -l
 
 Der einzig korrekte Weg: Key in `~/.ssh/` → `ddev auth ssh` → `ddev exec ssh-add -l` zur Verifikation.
 
-**Schritt 5 — Verbindung aus ddev testen (KI führt selbst aus):**
+**Schritt 4 — Verbindung aus ddev testen (KI führt selbst aus — erst nach Schritt 3 bestätigt):**
 
 ```bash
 ddev exec ssh PROFIL-NAME "echo OK"
