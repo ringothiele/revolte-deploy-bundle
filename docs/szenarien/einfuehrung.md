@@ -26,6 +26,23 @@ Deployments und Synchronisierungen laufen nie automatisch — weder durch Skript
 die KI. Jeder Schritt, der Daten auf den Server überträgt oder von dort holt, wird vom
 Entwickler bewusst ausgelöst. Die KI schlägt vor, der Entwickler entscheidet.
 
+## Sicherheitsprinzipien
+
+Das Bundle ist so ausgelegt, dass zu keinem Zeitpunkt sensible Zugangsdaten irgendwo
+gespeichert oder geteilt werden müssen:
+
+- **Keine Passwörter auf dem Server** — die Authentifizierung läuft ausschließlich über
+  SSH-Keys. Passwörter für den Server-Login werden nicht gespeichert und nicht übertragen.
+- **Keine privaten Keys auf dem Server** — auf dem Server liegen ausschließlich Public Keys
+  (in `~/.ssh/authorized_keys`). Der private Key verlässt niemals den lokalen Rechner des
+  Entwicklers.
+- **Keine privaten Keys in der KI** — private Keys werden der KI zu keinem Zeitpunkt
+  mitgeteilt. Die KI hat keinen Zugriff auf Zugangsdaten, Keys oder Passwörter. Sie
+  arbeitet ausschließlich mit dem Projekt-Code.
+- **SSH-Agent statt Klartext** — der private Key wird über den ddev SSH-Agent bereitgestellt.
+  Er liegt verschlüsselt auf dem lokalen Rechner und wird nur für die Dauer der Session
+  im Speicher gehalten. Kein Tool, kein Skript und keine KI liest den Key direkt aus.
+
 ---
 
 ## Alle Befehle im Überblick
