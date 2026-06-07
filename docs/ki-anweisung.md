@@ -57,18 +57,38 @@ Schlage niemals vor, Keys umzubenennen, zu verschieben, zu kopieren oder Symlink
 
 ---
 
+## Hinweis: --env=dev bei allen revolte:deploy-Befehlen
+
+Das Bundle ist mit `setLoadInProduction(false)` konfiguriert und steht im Standard-`prod`-Kontext nicht zur Verfügung. **Alle `revolte:deploy`-Befehle müssen mit `--env=dev` ausgeführt werden**, sonst lautet die Fehlermeldung:
+
+> There are no commands defined in the "revolte:deploy" namespace.
+
+---
+
 ## Was die KI selbst ausführen kann
 
-- `ddev exec php bin/console revolte:deploy:status` — Deploy-Stand prüfen
-- `ddev exec php bin/console revolte:deploy:doctor` — Lokale Umgebung prüfen
-- `ddev exec php bin/console revolte:deploy:check <env>` — Zielumgebung prüfen
+Nur lesende, zustandslose Befehle — keine Serververänderung:
+
+- `ddev exec php bin/console revolte:deploy:status --env=dev` — Deploy-Stand prüfen
+- `ddev exec php bin/console revolte:deploy:doctor --env=dev` — Lokale Umgebung prüfen
+- `ddev exec php bin/console revolte:deploy:check <env> --env=dev` — Zielumgebung prüfen
+- `ddev exec php bin/console revolte:deploy:code <env> --dry-run --env=dev` — Dry-run (zeigt was deployed würde, verändert nichts)
 - `ddev exec ssh -o BatchMode=yes PROFIL "echo OK"` — SSH-Verbindung testen (nur wenn Key bereits auf Server eingetragen ist)
 - `ddev exec ssh -o BatchMode=yes PROFIL "ls DATEI 2>/dev/null && echo vorhanden || echo fehlt"` — Dateien auf Server prüfen
 - `ddev exec ssh-add -l` — prüfen welche Keys im ddev-Agent geladen sind
 - `ddev exec ssh -o BatchMode=yes PROFIL "cat ~/.ssh/KEYNAME.pub"` — Public Key auf Server lesen
 - Lokale Dateien lesen (z. B. `~/.ssh/config`, `config/revolte_deploy.yaml`)
 - Git-Befehle lokal: `git status`, `git log`, `git add`, `git commit` etc.
-- Deploy-Commands via ddev: `ddev exec php bin/console revolte:deploy:*`
+
+## Deploy-Aktionen — ABSOLUTES VERBOT ohne ausdrückliche Genehmigung
+
+Diese Befehle verändern den Serverstand. Die KI darf sie **niemals** eigenständig ausführen:
+
+- `revolte:deploy:init` — klont das Repo auf den Server
+- `revolte:deploy:code` — deployed Code auf den Server
+- `revolte:deploy:full` — deployed Code + Datenbank + Dateien
+
+**Verhalten:** Nach Abschluss eines Einrichtungsschritts (SSH, GitHub Deploy Key, Init) hält die KI inne, fasst zusammen was eingerichtet wurde, und schlägt den nächsten Schritt vor. Sie wartet auf ein ausdrückliches "mach weiter" oder "führe X aus" bevor sie einen dieser Befehle startet.
 
 ## Was die KI NICHT ausführen kann — immer Entwickler ausführen lassen
 
@@ -362,15 +382,17 @@ Erwartete Ausgabe enthält: `You've successfully authenticated`
 **Voraussetzungen prüfen (KI führt selbst aus):**
 
 ```bash
-ddev exec php bin/console revolte:deploy:status
+ddev exec php bin/console revolte:deploy:status --env=dev
 ```
 
 Prüfe ob die Umgebung als "Nicht initialisiert" angezeigt wird.
 
-**Init ausführen (KI führt selbst aus):**
+**Init ausführen — nur mit ausdrücklicher Genehmigung des Entwicklers:**
+
+Der Entwickler muss explizit sagen "führe init aus" oder "mach weiter mit init". Die KI schlägt den Befehl vor und wartet.
 
 ```bash
-ddev exec php bin/console revolte:deploy:init UMGEBUNG
+ddev exec php bin/console revolte:deploy:init UMGEBUNG --env=dev
 ```
 
 Häufige Fehler nach Init:
@@ -383,7 +405,7 @@ Entwickler anleiten, `.env.local` auf dem Server anzulegen (→ `server-einricht
 Danach Status erneut prüfen:
 
 ```bash
-ddev exec php bin/console revolte:deploy:status
+ddev exec php bin/console revolte:deploy:status --env=dev
 ```
 
 ---
@@ -393,21 +415,23 @@ ddev exec php bin/console revolte:deploy:status
 **Dry-run zuerst (KI führt selbst aus):**
 
 ```bash
-ddev exec php bin/console revolte:deploy:code UMGEBUNG --dry-run
+ddev exec php bin/console revolte:deploy:code UMGEBUNG --dry-run --env=dev
 ```
 
 Ausgabe mit dem Entwickler besprechen — zeigt welche Commits deployed werden und ob composer.lock sich ändert.
 
-**Full Deploy ausführen (KI führt selbst aus):**
+**Full Deploy ausführen — nur mit ausdrücklicher Genehmigung des Entwicklers:**
+
+Dry-run-Ausgabe besprechen, dann auf "mach weiter" oder "führe deploy aus" warten.
 
 ```bash
-ddev exec php bin/console revolte:deploy:full UMGEBUNG
+ddev exec php bin/console revolte:deploy:full UMGEBUNG --env=dev
 ```
 
 **Danach Status prüfen:**
 
 ```bash
-ddev exec php bin/console revolte:deploy:status
+ddev exec php bin/console revolte:deploy:status --env=dev
 ```
 
 Die Umgebung sollte jetzt `✓ aktuell` zeigen.

@@ -122,7 +122,24 @@ touch "$HOME/.ssh/config"
 chmod 600 "$HOME/.ssh/config"
 
 if grep -q "^Host ${PROFIL}$" "$HOME/.ssh/config" 2>/dev/null; then
-    ok "Profil '$PROFIL' bereits vorhanden."
+    CURRENT_KEY=$(awk "/^Host ${PROFIL}$/{found=1} found && /^[[:space:]]*IdentityFile/{print \$2; exit}" "$HOME/.ssh/config")
+    CURRENT_KEY_EXPANDED="${CURRENT_KEY/#\~/$HOME}"
+    if [[ "$CURRENT_KEY_EXPANDED" == "$CHOSEN_KEY" ]]; then
+        ok "Profil '$PROFIL' bereits vorhanden mit korrektem Key."
+    else
+        warn "Profil '$PROFIL' vorhanden, aber IdentityFile zeigt auf: $CURRENT_KEY"
+        warn "Gewählter Key ist: $CHOSEN_KEY"
+        read -rp " IdentityFile auf neuen Key aktualisieren? [j/N] " UPDATE_KEY
+        if [[ "${UPDATE_KEY,,}" == "j" ]]; then
+            sed -i "/^Host ${PROFIL}$/,/^Host / s|IdentityFile.*|IdentityFile ${CHOSEN_KEY}|" "$HOME/.ssh/config"
+            ok "IdentityFile im Profil aktualisiert."
+        else
+            warn "Profil nicht aktualisiert — verwende bestehenden Key: $CURRENT_KEY"
+            CHOSEN_KEY="$CURRENT_KEY_EXPANDED"
+            KEY_NAME=$(basename "$CHOSEN_KEY")
+            PUBKEY=$(cat "${CHOSEN_KEY}.pub" 2>/dev/null || err "Public Key nicht gefunden: ${CHOSEN_KEY}.pub")
+        fi
+    fi
 else
     info "Trage Profil '$PROFIL' ein..."
     cat >> "$HOME/.ssh/config" <<EOF
@@ -155,7 +172,6 @@ Host ${PROFIL}
     HostName ${SRV_HOST}
     Port ${SRV_PORT}
     User ${SRV_USER}
-    IdentitiesOnly yes
 EOF
     ok "Profil eingetragen."
     NEEDS_RESTART=true
@@ -168,17 +184,21 @@ fi
 # ── ddev auth ssh ─────────────────────────────────────────────────────────────
 step "Keys in ddev-Agent laden"
 
-pause "ddev auth ssh\n\n Lädt alle Keys aus ~/.ssh/ in den ddev-SSH-Agent.\n Gibt die Passphrase für '${KEY_NAME}' ein wenn gefragt."
-
-# Key im Agent prüfen
-info "Prüfe ob '$KEY_NAME' im ddev-Agent geladen ist..."
+KEY_FP=$(ssh-keygen -lf "${CHOSEN_KEY}.pub" 2>/dev/null | awk '{print $2}')
 AGENT_KEYS=$(ddev exec ssh-add -l 2>/dev/null || true)
 
-if echo "$AGENT_KEYS" | grep -q "${KEY_NAME%.pub}"; then
-    ok "Key ist im ddev-Agent."
+if [[ -n "$KEY_FP" ]] && echo "$AGENT_KEYS" | grep -q "$KEY_FP"; then
+    ok "Key '$KEY_NAME' bereits im ddev-Agent geladen."
 else
-    echo ""
-    err "Key '${KEY_NAME}' nicht im ddev-Agent gefunden.\n\n Geladene Keys:\n$AGENT_KEYS\n\n Stelle sicher dass der Key direkt in ~/.ssh/ liegt (kein Unterordner)\n und die Passphrase korrekt war. Dann das Script neu starten."
+    pause "ddev auth ssh\n\n Lädt alle Keys aus ~/.ssh/ in den ddev-SSH-Agent.\n Gibt die Passphrase für '${KEY_NAME}' ein wenn gefragt."
+
+    AGENT_KEYS=$(ddev exec ssh-add -l 2>/dev/null || true)
+    if [[ -n "$KEY_FP" ]] && echo "$AGENT_KEYS" | grep -q "$KEY_FP"; then
+        ok "Key '$KEY_NAME' ist im ddev-Agent."
+    else
+        echo ""
+        err "Key '${KEY_NAME}' nicht im ddev-Agent gefunden.\n\n Geladene Keys:\n$AGENT_KEYS\n\n Stelle sicher dass der Key direkt in ~/.ssh/ liegt (kein Unterordner)\n und die Passphrase korrekt war. Dann das Script neu starten."
+    fi
 fi
 
 # ── SSH testen ────────────────────────────────────────────────────────────────
@@ -320,7 +340,7 @@ ok "Profil '$PROFIL' ist einsatzbereit."
 echo ""
 info "Nächste Schritte:"
 echo "   1. revolte_deploy.yaml prüfen und ggf. anpassen"
-echo "   2. ddev exec php bin/console revolte:deploy:doctor"
-echo "   3. ddev exec php bin/console revolte:deploy:check $ENV_NAME"
-echo "   4. ddev exec php bin/console revolte:deploy:init $ENV_NAME"
+echo "   2. ddev exec php bin/console revolte:deploy:doctor --env=dev"
+echo "   3. ddev exec php bin/console revolte:deploy:check $ENV_NAME --env=dev"
+echo "   4. ddev exec php bin/console revolte:deploy:init $ENV_NAME --env=dev"
 echo ""
