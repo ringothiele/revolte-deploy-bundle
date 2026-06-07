@@ -112,48 +112,48 @@ Danach sind DDEV, Contao, Adminer, Mailpit und der Contao Manager eingerichtet.
 ### 2. revolte-deploy-tools einbinden
 
 ```bash
-# Bundle in Projekt kopieren
-cp -r /pfad/zu/revolte-deploy-tools packages/revolte-deploy-tools
-
-# Als dev-Abhängigkeit eintragen
-ddev composer config repositories.revolte-deploy-tools \
-  '{"type":"path","url":"./packages/revolte-deploy-tools","options":{"symlink":false}}'
-ddev composer require --dev "revolte/contao-deploy-tools:*@dev"
+ddev composer require --dev revolte/contao-deploy-tools
 
 # Konfiguration anlegen
 cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml
 ```
 
-### 3. Konfiguration anpassen
+### 3. Grundkonfiguration anpassen
 
-`config/revolte_deploy.yaml` öffnen und anpassen:
+`config/revolte_deploy.yaml` öffnen — mindestens `project` und `git.repository` eintragen:
 
 ```yaml
 project: mein-projekt
 git:
   repository: git@github-mein-projekt:revolte/mein-projekt.git
-
-environments:
-  stage:
-    ssh_profile: mein-projekt-stage
-    remote_path: /www/htdocs/...
-    branch: main
 ```
 
-SSH-Einrichtung: siehe [ssh-einrichtung.md](ssh-einrichtung.md)
+Umgebungen (stage, live) werden im nächsten Schritt automatisch eingetragen.
 
-### 4. Umgebung prüfen
+### 4. SSH-Einrichtung — für jede Umgebung einmal
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:doctor
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:check stage
+vendor/bin/revolte-ssh-setup
 ```
 
-### 5. Ersten Deploy ausführen
+Das Script fragt alle Werte ab (Umgebungsname, SSH-Profil, Server, Branch, Entwicklerkürzel)  
+und erledigt: Key-Prüfung, `~/.ssh/config`, ddev homeadditions, Key auf Server, `revolte_deploy.yaml`.  
+Für eine weitere Umgebung (live, Serverumzug) einfach erneut ausführen.
+
+Details: siehe [ssh-einrichtung.md](ssh-einrichtung.md)
+
+### 5. Umgebung prüfen
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:init stage
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:full stage
+ddev exec php bin/console revolte:deploy:doctor
+ddev exec php bin/console revolte:deploy:check stage
+```
+
+### 6. Ersten Deploy ausführen
+
+```bash
+ddev exec php bin/console revolte:deploy:init stage
+ddev exec php bin/console revolte:deploy:full stage
 ```
 
 Server-Einrichtung nach Init: siehe [server-einrichtung.md](server-einrichtung.md)

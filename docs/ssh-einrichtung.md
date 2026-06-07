@@ -5,6 +5,23 @@ Ziel: lokale Rechner so einrichten, dass Deployments per SSH auf Zielserver funk
 
 ---
 
+## Empfohlener Weg: revolte-ssh-setup
+
+Statt der manuellen Schritte unten das Script verwenden — es prüft jeden Zustand,  
+fragt alle nötigen Werte ab und trägt die Umgebung direkt in die `revolte_deploy.yaml` ein:
+
+```bash
+vendor/bin/revolte-ssh-setup
+```
+
+Für jede Umgebung (stage, live) einmal aufrufen. Idempotent — kann jederzeit erneut ausgeführt werden.
+
+Die manuellen Abschnitte unten dienen als Referenz und für Sonderfälle.
+
+---
+
+---
+
 ## Was ist SSH und warum brauchen wir es?
 
 SSH ist eine verschlüsselte Verbindung zwischen zwei Rechnern.  

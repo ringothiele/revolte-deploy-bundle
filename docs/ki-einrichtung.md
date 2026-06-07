@@ -5,11 +5,28 @@ Die KI führt dich Schritt für Schritt durch den Prozess, prüft selbst was sie
 
 ---
 
-## Wie es funktioniert
+## Ablauf: Neue Umgebung einrichten
+
+```
+1. composer require --dev revolte/contao-deploy-tools
+2. config/revolte_deploy.yaml aus der Dist-Datei anlegen und Projektdaten eintragen
+3. vendor/bin/revolte-ssh-setup   ← SSH-Einrichtung (Script, kein KI-Schritt)
+4. KI: revolte:deploy:check, revolte:deploy:init, erster Deploy
+```
+
+Der SSH-Setup läuft als eigenständiges Bash-Script — dort übernimmt keine KI.  
+Das Script fragt alle nötigen Werte ab, richtet Keys und Profile ein und  
+trägt die Umgebung in die `revolte_deploy.yaml` ein.
+
+Danach startet die KI-gestützte Phase mit `ki-anweisung.md` als Grundlage.
+
+---
+
+## Wie die KI-Phase funktioniert
 
 - Die KI prüft jeden Schritt **bevor** sie ihn ausführt — keine Annahmen, keine blinden Aktionen
 - **Was die KI selbst erledigt:** Status abfragen, Verbindungen testen, Deploy-Befehle ausführen
-- **Was du ausführst:** Alles mit SSH-Passphrase (`ddev auth ssh`, `ssh-keygen`) und GitHub-Aktionen im Browser
+- **Was du ausführst:** GitHub Deploy Key im Browser eintragen, `revolte:deploy:init`
 
 Damit die KI weiß wie sie vorgehen soll, referenziert sie die Datei  
 `vendor/revolte/contao-deploy-tools/docs/ki-anweisung.md` in diesem Repo.
