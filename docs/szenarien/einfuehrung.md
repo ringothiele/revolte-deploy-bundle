@@ -108,6 +108,7 @@ touch /pfad/zur/umgebung/.allow_deploy_full
 **Grundlagen (unabhängig vom Szenario):**
 
 - [Ersteinrichtung Schritt für Schritt](../ersteinrichtung.md) — vom frischen Contao bis zum ersten Deploy, ohne jedes Vorwissen
+- [Stage-Kurzanleitung](../stage-kurzanleitung.md) — neues Stage-Projekt auf dem Labor, wenn die Ersteinrichtung schon einmal durchlaufen wurde
 - [Alltag](../alltag.md) — täglicher Workflow nach der Einrichtung (Session-Start, Deploy-Zyklus, Störungs-Checkliste)
 - [Entwickler-Workflow](../entwickler-workflow.md) — das Konzept: wann welcher Befehl und warum
 

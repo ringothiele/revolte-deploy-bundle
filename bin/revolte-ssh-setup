@@ -395,7 +395,7 @@ if [[ -z "$KUERZEL" ]]; then
 fi
 
 # ── Team-Defaults laden (nur für stage relevant) ─────────────────────────────
-STAGE_HOST=""; STAGE_PORT=""; STAGE_ACCOUNT=""; STAGE_PATH_TEMPLATE=""
+STAGE_HOST=""; STAGE_PORT=""; STAGE_USER=""; STAGE_ACCOUNT=""; STAGE_PATH_TEMPLATE=""
 if [[ -f "$TEAM_CONF" ]]; then
     # shellcheck disable=SC1090
     . "$TEAM_CONF"
@@ -404,10 +404,11 @@ fi
 # ── Werte auflösen: Flags > Team-Defaults > Prompt ───────────────────────────
 step "Umgebungsdaten"
 
-DEF_HOST=""; DEF_PORT="22"; DEF_ACCOUNT=""; DEF_PATH=""
+DEF_HOST=""; DEF_PORT="22"; DEF_USER=""; DEF_ACCOUNT=""; DEF_PATH=""
 if [[ "$ENV_NAME" == "stage" && -n "$STAGE_HOST" ]]; then
     DEF_HOST="$STAGE_HOST"
     DEF_PORT="${STAGE_PORT:-22}"
+    DEF_USER="$STAGE_USER"
     DEF_ACCOUNT="$STAGE_ACCOUNT"
     [[ -n "$STAGE_PATH_TEMPLATE" ]] && DEF_PATH="${STAGE_PATH_TEMPLATE//\{project\}/$PROJECT_NAME}"
     info "Team-Defaults für stage geladen ($TEAM_CONF)."
@@ -421,7 +422,7 @@ esac
 PROFIL="${OPT_PROFILE:-${PROJECT_NAME}-${ENV_NAME}}"
 SRV_HOST="${OPT_HOST:-$(ask_required "Server-Hostname oder IP" "$DEF_HOST")}"
 SRV_PORT="${OPT_PORT:-$(ask_required "SSH-Port" "$DEF_PORT")}"
-SRV_USER="${OPT_USER:-$(ask_required "SSH-Benutzer")}"
+SRV_USER="${OPT_USER:-$(ask_required "SSH-Benutzer" "$DEF_USER")}"
 REMOTE_PATH="${OPT_PATH:-$(ask_required "Remote-Pfad auf dem Server" "$DEF_PATH")}"
 ENV_BRANCH="${OPT_BRANCH:-$(ask_required "Branch für diese Umgebung" "$DEF_BRANCH")}"
 SRV_ACCOUNT="${OPT_ACCOUNT:-$(ask_required "Server-Account für Key-Benennung (z.B. revolte-labor)" "$DEF_ACCOUNT")}"
@@ -757,11 +758,11 @@ else
     warn "Bitte allowed_branches in $YAML_FILE prüfen und bei Bedarf erweitern."
 fi
 
-# ── Stage-Vorbelegung anbieten (nur stage, nur wenn noch keine existiert) ─────
-if [[ "$ENV_NAME" == "stage" && -z "$STAGE_HOST" ]]; then
+# ── Stage-Vorbelegung anbieten (wenn noch keine oder eine unvollständige existiert)
+if [[ "$ENV_NAME" == "stage" && ( -z "$STAGE_HOST" || -z "$STAGE_USER" ) ]]; then
     echo ""
-    info "Die eingegebenen Stage-Serverdaten (Host, Port, Account, Pfad-Schema) können"
-    info "auf DIESEM Rechner gemerkt werden — nur lokal, in ~/.config/revolte/team.conf."
+    info "Die eingegebenen Stage-Serverdaten (Host, Port, Benutzer, Account, Pfad-Schema)"
+    info "können auf DIESEM Rechner gemerkt werden — nur lokal, in ~/.config/revolte/team.conf."
     info "Beim nächsten Stage-Projekt sind sie dann vorausgefüllt statt neu zu tippen."
     if confirm "Stage-Serverdaten auf diesem Rechner merken?"; then
         PATH_TEMPLATE="${REMOTE_PATH//$PROJECT_NAME/\{project\}}"
@@ -769,6 +770,7 @@ if [[ "$ENV_NAME" == "stage" && -z "$STAGE_HOST" ]]; then
             echo "# revolte-ssh-setup Team-Defaults (Stage) — automatisch erzeugt"
             echo "STAGE_HOST=${SRV_HOST}"
             echo "STAGE_PORT=${SRV_PORT}"
+            echo "STAGE_USER=${SRV_USER}"
             echo "STAGE_ACCOUNT=${SRV_ACCOUNT}"
             echo "STAGE_PATH_TEMPLATE=${PATH_TEMPLATE}"
         } > "$TEAM_CONF"
