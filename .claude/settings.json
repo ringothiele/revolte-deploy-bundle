@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash -n /home/ringo/projekte/revolte-deploy-bundle/bin/revolte-ssh-setup)",
+      "Bash(command -v shellcheck)",
+      "Bash(shellcheck -S warning /home/ringo/projekte/revolte-deploy-bundle/bin/revolte-ssh-setup)",
+      "Bash(chmod +x /home/ringo/projekte/revolte-deploy-bundle/bin/revolte-ssh-setup)",
+      "Bash(php -l src/Command/DeployDoctorCommand.php)",
+      "Bash(composer --version)",
+      "Bash(composer install *)",
+      "Bash(vendor/bin/phpunit)",
+      "Bash(chmod +x /tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad/fakebin/ddev)",
+      "Bash(ssh-keygen -q -t ed25519 -N '' -f /tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad/fakehome/.ssh/rt_revolte-labor_ed25519 -C rt-revolte-labor)",
+      "Bash(SP=/tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad *)",
+      "Bash(HOME=/tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad/fakehome PATH=/tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad/fakebin:__TRACKED_VAR__ /home/ringo/projekte/revolte-deploy-bundle/bin/revolte-ssh-setup stage --check)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'docs: Umbauplan revolte-ssh-setup v2 \\(deterministisch, fail2ban-schonend\\) *)",
+      "Bash(git commit -q -m 'feat\\(ssh-setup\\): Script v2 — ein Key pro Verbindung, Cooldown, Flags, --check *)",
+      "Bash(git commit -q -m 'feat\\(ki-schutz\\): Deny-Vorlage für Claude Code, AGENTS-Baustein, Doctor-Check *)",
+      "Bash(git commit -q -m 'docs: Ersteinrichtung Schritt für Schritt \\(Null-Voraussetzungen, Validierungsprotokoll\\) *)",
+      "Bash(git commit -q -m 'docs: Alltags-Anleitung \\(Session-Start, Orientierung nach Pause, Deploy-Zyklus\\) *)",
+      "Bash(git rm *)",
+      "Bash(git commit -q -m 'feat+docs: Stage-Kurzanleitung, STAGE_USER-Vorbefüllung, v1-Docs entfernt *)"
+    ],
+    "additionalDirectories": [
+      "/tmp/claude-1000/-home-ringo-projekte-revolte-deploy-bundle/9d999e61-ebda-4cfc-848b-5d7bdbde4c1e/scratchpad/fakeproj/config"
+    ]
+  }
+}
