@@ -615,29 +615,59 @@ fi
 # ── Schritt 5: Public Key auf dem Server + revolte_deploy.yaml ───────────────
 step "5/6 Public Key auf dem Server"
 
-KEY_INSTALLED=0
+RUN_TEST=1
 
-if confirm "Ist der Public Key bereits auf dem Server hinterlegt (früherer Lauf / Hosting-Panel)?"; then
-    ok "Key-Eintrag wird übersprungen."
-    KEY_INSTALLED=1
+info "Dein Public Key für diesen Server:"
+echo ""
+echo "   ${PUBKEY}"
+echo ""
+echo "   So prüfst du OHNE SSH-Verbindung, ob er schon hinterlegt ist:"
+echo "   Per FTP/WebFTP (Hetzner KonsoleH: Menüpunkt 'WebFTP') im Home-Verzeichnis"
+echo "   des Benutzers '${SRV_USER}' die Datei .ssh/authorized_keys öffnen"
+echo "   (versteckte Dateien einblenden!) und nachsehen, ob die Zeile oben schon"
+echo "   drinsteht. Nutze dafür ruhig Browser/FTP-Client oder ein zweites"
+echo "   Terminal — dieses Script wartet solange."
+echo ""
+
+if confirm "Ist der Key bereits in authorized_keys enthalten?"; then
+    ok "Key ist hinterlegt — Eintrag wird übersprungen."
 else
-    # Kandidaten aus ~/.ssh/config anzeigen — OHNE sie per SSH durchzuprobieren
-    CANDIDATES=$(awk -v host="$SRV_HOST" -v port="$SRV_PORT" -v skip="$PROFIL" '
-        /^Host[[:space:]]/ { p = $2; hn = ""; pt = "22" }
+    echo ""
+    info "Key eintragen — drei Wege, einen davon wählen:"
+    echo ""
+    echo "   A) Per FTP/WebFTP (empfohlen — kein fail2ban-Risiko):"
+    echo "      Die Public-Key-Zeile oben als neue Zeile an .ssh/authorized_keys anhängen."
+    echo "      Falls Ordner/Datei fehlen: anlegen. Rechte: .ssh = 700, Datei = 600."
+    echo ""
+
+    # Kandidaten: gleicher Host+Port UND gleicher Benutzer — Zugänge sind
+    # projektgebunden, ein Profil mit anderem User erreicht andere authorized_keys.
+    CANDIDATES=$(awk -v host="$SRV_HOST" -v port="$SRV_PORT" -v user="$SRV_USER" -v skip="$PROFIL" '
+        /^Host[[:space:]]/ { p = $2; hn = ""; pt = "22"; us = "" }
         tolower($1) == "hostname" { hn = $2 }
         tolower($1) == "port"     { pt = $2 }
-        hn == host && pt == port && p != skip && !seen[p]++ { print p }
+        tolower($1) == "user"     { us = $2 }
+        hn == host && pt == port && us == user && p != skip && !seen[p]++ { print p }
     ' "$SSH_CONFIG" 2>/dev/null || true)
+
+    if [[ -n "$CANDIDATES" ]]; then
+        echo "   B) Über ein bereits funktionierendes Profil mit demselben Benutzer"
+        echo "      (genau 1 Verbindung, kein Passwort nötig). Passende Profile:"
+        echo "$CANDIDATES" | while IFS= read -r c; do echo "         $c"; done
+        echo ""
+    fi
+
+    echo "   C) Per Passwort-Login:"
+    echo ""
+    echo -e "      ${Y}⚠ ACHTUNG: Der Prompt fragt das SSH-PASSWORT des Server-Benutzers '${SRV_USER}'${NC}"
+    echo -e "      ${Y}  — NICHT die Passphrase deines Keys! Vertippt? Strg+C und NICHT neu probieren (fail2ban).${NC}"
+    echo ""
+    echo "      ddev exec ssh -o PubkeyAuthentication=no ${PROFIL} \"mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo '${PUBKEY}' >> ~/.ssh/authorized_keys\""
+    echo ""
 
     WORKING_PROFILE=""
     if [[ -n "$CANDIDATES" ]]; then
-        echo ""
-        info "Profile für denselben Server in ~/.ssh/config:"
-        echo "$CANDIDATES" | while IFS= read -r c; do echo "      $c"; done
-        echo ""
-        echo "   Falls eines davon bei dir FUNKTIONIERT, kann der neue Key darüber"
-        echo "   automatisch eingetragen werden (genau 1 Verbindung)."
-        WORKING_PROFILE=$(ask "Funktionierendes Profil (Enter = keins)")
+        WORKING_PROFILE=$(ask "Weg B nutzen? Profilname eingeben (Enter = Weg A oder C manuell)")
     fi
 
     if [[ -n "$WORKING_PROFILE" ]]; then
@@ -645,28 +675,23 @@ else
         if ddev exec ssh -o BatchMode=yes -o ConnectTimeout=10 "$WORKING_PROFILE" \
             "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qxF '${PUBKEY}' ~/.ssh/authorized_keys || echo '${PUBKEY}' >> ~/.ssh/authorized_keys"; then
             ok "Key eingetragen über '$WORKING_PROFILE'."
-            KEY_INSTALLED=1
         else
-            warn "Eintrag über '$WORKING_PROFILE' fehlgeschlagen — bitte manuell (siehe unten)."
+            warn "Eintrag über '$WORKING_PROFILE' fehlgeschlagen."
+            cooldown_set
+            RUN_TEST=0
+            warn "Verbindungstest wird übersprungen, Cooldown ${COOLDOWN_MINUTES} min (fail2ban-Schutz)."
         fi
-    fi
-
-    if [[ "$KEY_INSTALLED" -eq 0 ]]; then
-        echo ""
-        info "Key manuell hinterlegen — zwei Möglichkeiten:"
-        echo ""
-        echo "   A) Hosting-Panel (z.B. Hetzner konsoleH): diesen Public Key eintragen:"
-        echo ""
-        echo "      ${PUBKEY}"
-        echo ""
-        echo "   B) Per Passwort-Login (fragt EINMAL das Server-Passwort ab):"
-        echo ""
-        echo "      ddev exec ssh -o PubkeyAuthentication=no ${PROFIL} \"mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo '${PUBKEY}' >> ~/.ssh/authorized_keys\""
-        echo ""
-        echo -e "   ${Y}Hinweis:${NC} Bei falschem Passwort NICHT sofort neu probieren (fail2ban)."
-        echo ""
-        read -r -p " Enter drücken, wenn der Key hinterlegt ist ... "
-        KEY_INSTALLED=1
+    else
+        read -r -p " Enter drücken, wenn der Key eingetragen ist (Weg A oder C) ... "
+        if ! confirm "Hat der Eintrag fehlerfrei geklappt?"; then
+            RUN_TEST=0
+            if confirm "Gab es dabei einen fehlgeschlagenen SSH-/Passwort-Versuch?"; then
+                cooldown_set
+                warn "Cooldown gesetzt: ${COOLDOWN_MINUTES} min keine Verbindungsversuche (fail2ban-Schutz)."
+            fi
+            warn "Verbindungstest wird übersprungen. Wenn der Key-Eintrag geklärt ist:"
+            warn "  vendor/bin/revolte-ssh-setup ${ENV_NAME} --check"
+        fi
     fi
 fi
 
@@ -732,10 +757,13 @@ else
     warn "Bitte allowed_branches in $YAML_FILE prüfen und bei Bedarf erweitern."
 fi
 
-# ── Team-Defaults anbieten (nur stage, nur wenn noch keine existieren) ────────
+# ── Stage-Vorbelegung anbieten (nur stage, nur wenn noch keine existiert) ─────
 if [[ "$ENV_NAME" == "stage" && -z "$STAGE_HOST" ]]; then
     echo ""
-    if confirm "Diese Stage-Werte als Team-Defaults speichern (füllt künftige Setups vor)?"; then
+    info "Die eingegebenen Stage-Serverdaten (Host, Port, Account, Pfad-Schema) können"
+    info "auf DIESEM Rechner gemerkt werden — nur lokal, in ~/.config/revolte/team.conf."
+    info "Beim nächsten Stage-Projekt sind sie dann vorausgefüllt statt neu zu tippen."
+    if confirm "Stage-Serverdaten auf diesem Rechner merken?"; then
         PATH_TEMPLATE="${REMOTE_PATH//$PROJECT_NAME/\{project\}}"
         {
             echo "# revolte-ssh-setup Team-Defaults (Stage) — automatisch erzeugt"
@@ -755,6 +783,9 @@ TEST_RESULT=0
 
 if [[ "$SKIP_TEST" -eq 1 ]]; then
     info "Übersprungen (--skip-test). Später prüfen mit: vendor/bin/revolte-ssh-setup ${ENV_NAME} --check"
+elif [[ "$RUN_TEST" -eq 0 ]]; then
+    warn "Übersprungen (Key-Eintrag noch ungeklärt). Später prüfen mit: vendor/bin/revolte-ssh-setup ${ENV_NAME} --check"
+    TEST_RESULT=1
 else
     REST=$(cooldown_remaining_min)
     if [[ "$REST" -gt 0 ]]; then

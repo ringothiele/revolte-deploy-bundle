@@ -185,6 +185,8 @@ class DeployInitCommand extends Command
 
         $io->writeln(sprintf(' <comment>2. .env.local anlegen:</comment>'));
         $io->writeln(sprintf('    nano %s/.env.local', $remotePath));
+        $io->writeln('    (nano: speichern = Strg+O, Enter — beenden = Strg+X)');
+        $io->writeln('    Alternativ die Datei per FTP/WebFTP anlegen und bearbeiten.');
         $io->newLine();
         $io->writeln('    Mindestinhalt:');
         $io->writeln('    APP_ENV=prod');

@@ -5,22 +5,22 @@ lokal erreichbar) bis zum ersten erfolgreichen Deploy auf die Stage. **Es wird
 nichts vorausgesetzt** — vor jedem Baustein steht ein Test, ob er schon vorhanden
 ist, und falls nein, die konkreten Schritte, um ihn herzustellen.
 
-> Diese Anleitung dient zugleich als Validierungsprotokoll: Wenn ein Schritt sich
-> nicht exakt so ausführen lässt wie beschrieben, ist das ein Fehler — bitte
-> notieren, an welcher Stelle und mit welcher Meldung.
+Für den Alltag danach (Deploys, Projektwechsel, Rückkehr nach Pause) gibt es die
+[Alltags-Anleitung](alltag.md).
 
 ## Bevor du anfängst
 
 **Zwei Terminals, ein Unterschied.** Befehle laufen entweder auf deinem Rechner
 (**[HOST]** — unter Windows immer das WSL2/Ubuntu-Terminal, nie PowerShell; am Mac
-das normale Terminal) oder im ddev-Container (**[HOST]**-Befehle, die mit
-`ddev exec` beginnen, laufen automatisch im Container). Alle Befehle werden im
-Projektordner ausgeführt (z. B. `~/projekte/mein-projekt`).
+das normale Terminal) oder auf dem Server (**[SERVER]** — nach einem `ssh …`).
+`ddev exec`-Befehle tippst du im Host-Terminal, sie laufen automatisch im
+ddev-Container. Alle Befehle werden im Projektordner ausgeführt
+(z. B. `~/projekte/mein-projekt`).
 
 **Das musst du bereitlegen** (beim Team-Lead erfragen, falls unklar):
 
-- [ ] GitHub-Account mit Zugriff auf `ringothiele/revolte-deploy-bundle` und dem Recht, ein neues Repository in der Organisation anzulegen
-- [ ] SSH-Zugangsdaten der Stage: Host, Port, Benutzer, Passwort (oder Zugang zum Hosting-Panel, z. B. Hetzner KonsoleH)
+- [ ] GitHub-Account mit Zugriff auf `ringothiele/revolte-deploy-bundle` und dem Recht, ein neues Repository anzulegen
+- [ ] SSH-Zugangsdaten der Stage: Host, Port, Benutzer, Passwort — und/oder Zugang zum Hosting-Panel (Hetzner KonsoleH) bzw. FTP
 - [ ] Datenbank-Zugangsdaten der Stage (Host, DB-Name, Benutzer, Passwort) — oder das Recht, im Panel eine DB anzulegen
 - [ ] Dein Entwicklerkürzel (rt, pl, sl)
 
@@ -28,6 +28,9 @@ Projektordner ausgeführt (z. B. `~/projekte/mein-projekt`).
 fehlgeschlagenen SSH-Login für 30+ Minuten (fail2ban). Deshalb führt **jeden**
 Befehl dieser Anleitung ein Mensch aus. Eine KI darf Befehle erklären und
 vorbereiten — ausführen niemals.
+
+**Editor-Spickzettel:** Wo `nano` auftaucht: speichern = `Strg+O`, dann `Enter` —
+beenden = `Strg+X`.
 
 ---
 
@@ -149,35 +152,7 @@ Bundle ist absichtlich nur in der Dev-Umgebung geladen.
 
 ---
 
-## Schritt 3 — Deploy-Konfiguration anlegen
-
-**Was & warum:** Die Datei `config/revolte_deploy.yaml` beschreibt das Projekt
-und seine Zielumgebungen (Stage, Live). Sie enthält **keine Secrets** und gehört
-mit ins Git-Repository, damit alle Entwickler dieselbe Deploy-Konfiguration nutzen.
-
-**Machen:** [HOST]
-
-```bash
-mkdir -p config
-cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml
-```
-
-Dann die Datei im Editor öffnen und **nur zwei Werte** anpassen (den Rest trägt
-später das SSH-Setup-Script ein):
-
-```yaml
-project: <projektname>          # z. B. mein-projekt
-
-git:
-  remote: origin
-  repository: git@github.com:<organisation>/<projektname>.git   # das Repo aus Schritt 4
-```
-
-**Erfolgskriterium:** Datei existiert, `project:` und `git.repository:` sind gesetzt.
-
----
-
-## Schritt 4 — Projekt in Git und auf GitHub bringen
+## Schritt 3 — Projekt in Git und auf GitHub bringen
 
 **Was & warum:** Deployments laufen bei uns git-first: Der Server holt sich den
 Code per `git pull` aus dem GitHub-Repository — nicht per Datei-Upload. Ohne
@@ -190,7 +165,7 @@ git status
 ```
 
 - `fatal: not a git repository` → weiter bei „Machen".
-- Zeigt einen Branch und `origin` existiert (`git remote -v`) → weiter zu Schritt 5.
+- Zeigt einen Branch und `origin` existiert (`git remote -v`) → weiter zu Schritt 4.
 
 **Machen:**
 
@@ -253,6 +228,49 @@ Branches; lokal bist du auf `develop` (`git branch --show-current`).
 
 ---
 
+## Schritt 4 — Deploy-Konfiguration anlegen
+
+**Was & warum:** Die Datei `config/revolte_deploy.yaml` beschreibt das Projekt
+und seine Zielumgebungen (Stage, Live). Sie enthält **keine Secrets** und gehört
+mit ins Git-Repository, damit alle Entwickler dieselbe Deploy-Konfiguration
+nutzen. (Das GitHub-Repository aus Schritt 3 existiert jetzt — dessen Name wird
+hier gebraucht.)
+
+**Machen:** [HOST]
+
+```bash
+mkdir -p config
+cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml
+```
+
+Dann die Datei im Editor öffnen und **nur zwei Werte** anpassen (den Rest trägt
+später das SSH-Setup-Script ein):
+
+```yaml
+project: <projektname> # z. B. mein-projekt
+
+git:
+  remote: origin
+  repository: git@github.com-<projektname>:<organisation>/<projektname>.git
+```
+
+**Warum sieht die Repository-URL so komisch aus?** Der Teil
+`github.com-<projektname>` ist ein SSH-Alias, den wir in Schritt 7 **auf dem
+Server** anlegen. Hintergrund: GitHub erlaubt einen Deploy Key nur für genau ein
+Repository — beherbergt ein Server-Account mehrere Projekte, braucht jedes
+Projekt seinen eigenen Key, und der Alias sagt dem Server, welcher Key zu
+welchem Repo gehört. Diese URL benutzt nur der Server (beim Klonen/Pullen);
+dein lokales `origin` bleibt die normale `github.com`-URL.
+
+**Achtung, Platzhalter:** `<projektname>` und `<organisation>` wirklich durch
+die echten Namen ersetzen. Bleibt ein `<…>` stehen, verweigern die
+Deploy-Befehle mit einer klaren Fehlermeldung den Dienst.
+
+**Erfolgskriterium:** Datei existiert, `project:` und `git.repository:` sind
+gesetzt, keine `<…>`-Platzhalter mehr enthalten.
+
+---
+
 ## Schritt 5 — KI-Schutz aktivieren
 
 **Was & warum:** Damit eine KI (Claude Code, Codex) niemals selbst SSH-Verbindungen
@@ -284,8 +302,9 @@ Umgebung in der Deploy-Konfiguration. Das erledigt ein Script in einem Rutsch �
 es ist bewusst so gebaut, dass es pro Lauf höchstens **einen** Verbindungsversuch
 macht (fail2ban-Schutz) und jederzeit gefahrlos wiederholt werden kann.
 
-**Jetzt bereithalten:** Host, Port, Benutzer und Passwort der Stage
-(bzw. Panel-Zugang).
+**Jetzt bereithalten:** Host, Port und Benutzer der Stage sowie Panel-/FTP-Zugang
+(oder das SSH-Passwort). Der Remote-Pfad auf dem Labor-Server folgt dem Schema
+`/usr/www/users/<benutzer>/<projektname>`.
 
 **Machen:** [HOST]
 
@@ -299,24 +318,28 @@ Das Script führt durch alles durch. Was dabei passiert und was es fragt:
    dauerhaft gespeichert).
 2. **Serverdaten** (Host, Port, Benutzer, Remote-Pfad, Branch) sowie der
    **Server-Account für die Key-Benennung** (für die Stage: `revolte-labor`).
-   Beim ersten Stage-Setup im Team tippst du sie ein; das Script bietet danach
-   an, sie als Team-Defaults zu speichern — bei späteren Projekten sind sie dann
-   vorbefüllt. Branch für Stage ist `develop` (Vorgabe einfach bestätigen).
+   Beim ersten Stage-Setup tippst du sie ein; danach bietet das Script an, sie
+   auf deinem Rechner zu merken — bei späteren Projekten sind sie vorbefüllt.
+   Branch für Stage ist `develop` (Vorgabe einfach bestätigen).
 3. **SSH-Key**: Existiert noch keiner nach der Namenskonvention, ruft das Script
    `ssh-keygen` auf — hier wählst du eine Passphrase (2× eingeben, merken).
 4. **Configs & Container**: Das Script schreibt die SSH-Profile, startet ddev bei
    Bedarf neu und lädt die Keys per `ddev auth ssh` in den Agenten (hier kommt
    die Passphrase-Abfrage).
-5. **Key auf den Server**: Das Script fragt, ob der Public Key schon auf dem
-   Server liegt (beim ersten Mal: nein). Dann zeigt es zwei Wege — Eintrag übers
-   Hosting-Panel oder ein fertiger Befehl, der **einmal** das Server-Passwort
-   abfragt. Einen davon ausführen, dann im Script Enter drücken.
+5. **Key auf den Server**: Das Script zeigt deinen Public Key an und erklärt,
+   wie du per FTP/WebFTP (KonsoleH: Menüpunkt „WebFTP") in der Datei
+   `.ssh/authorized_keys` **nachsiehst**, ob er schon drinsteht — dafür Browser,
+   FTP-Client oder ein zweites Terminal nutzen, das Script wartet solange.
+   Fehlt er, gibt es drei Eintragswege: **A)** per FTP/WebFTP die Zeile anhängen
+   (empfohlen, kein fail2ban-Risiko), **B)** über ein bereits funktionierendes
+   Profil mit demselben Benutzer, **C)** per Passwort-Login — dabei fragt der
+   Prompt das **SSH-Passwort des Servers**, nicht deine Key-Passphrase!
 6. **Ein Verbindungstest.** Bei Erfolg bist du fertig.
 
-**Wenn der Verbindungstest fehlschlägt:** Das Script erklärt das Fehlerbild und
-setzt einen **35-Minuten-Cooldown** für diesen Server. Das ist Absicht — jeder
-weitere Fehlversuch würde eine mögliche fail2ban-Sperre verlängern. Ursache in
-Ruhe beheben (steht in der Fehlermeldung), warten, dann:
+**Wenn der Verbindungstest fehlschlägt (oder der Key-Eintrag unklar war):** Das
+Script erklärt das Fehlerbild und setzt einen **35-Minuten-Cooldown** für diesen
+Server. Das ist Absicht — jeder weitere Fehlversuch würde eine mögliche
+fail2ban-Sperre verlängern. Ursache in Ruhe beheben, warten, dann:
 
 ```bash
 vendor/bin/revolte-ssh-setup stage --check
@@ -330,12 +353,18 @@ Verbindungsversuch — es zeigt dir genau, welcher Baustein noch fehlt.
 
 ---
 
-## Schritt 7 — Deploy-Key: der Server braucht Lesezugriff auf GitHub
+## Schritt 7 — Deploy-Key: der Server braucht Lesezugriff auf das Repo
 
 **Was & warum:** Beim Deploy holt sich der **Server** den Code selbst von GitHub
-(`git pull`). Dafür braucht der Server einen eigenen SSH-Key, der im
-GitHub-Repository als „Deploy Key" (nur Lesen) hinterlegt wird. Das ist ein
-anderer Key als deiner — er gehört dem Server, nicht dir.
+(`git pull`). Dafür braucht er einen eigenen Key, der im GitHub-Repository als
+„Deploy Key" (nur Lesen) hinterlegt wird. Wichtig: GitHub erlaubt einen Deploy
+Key nur für **genau ein** Repository — und ein Server-Account beherbergt bei uns
+oft mehrere Projekte. Deshalb bekommt jedes Projekt seinen **eigenen** Key plus
+einen SSH-Alias, der Key und Repo verknüpft (genau der Alias aus der
+Repository-URL in Schritt 4).
+
+**Niemals** einen vorhandenen `~/.ssh/id_ed25519` auf dem Server löschen oder
+überschreiben — der gehört sehr wahrscheinlich einem anderen Projekt!
 
 **Machen:**
 
@@ -345,60 +374,50 @@ anderer Key als deiner — er gehört dem Server, nicht dir.
    ssh <projektname>-stage
    ```
 
-2. Auf dem Server prüfen, ob schon ein Key existiert: [SERVER]
+2. Projektspezifischen Key erzeugen — **ohne Passphrase**, weil der Server ihn
+   beim Deploy unbeaufsichtigt benutzt: [SERVER]
 
    ```bash
-   cat ~/.ssh/id_ed25519.pub
+   ssh-keygen -t ed25519 -N "" -f ~/.ssh/<projektname>_github_ed25519 -C "deploy-key <projektname>"
+   cat ~/.ssh/<projektname>_github_ed25519.pub
    ```
 
-   Kommt eine `ssh-ed25519 ...`-Zeile → direkt zu 4. Kommt „No such file":
-
-3. Key auf dem Server erzeugen — **ohne Passphrase**, weil der Server ihn beim
-   Deploy unbeaufsichtigt benutzen muss: [SERVER]
-
-   ```bash
-   ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 -C "deploy-<projektname>-stage"
-   cat ~/.ssh/id_ed25519.pub
-   ```
-
-4. Die ausgegebene Zeile kopieren und bei GitHub eintragen: Repository →
-   **Settings** → **Deploy keys** → **Add deploy key** → Titel z. B.
+3. Die ausgegebene Zeile kopieren und bei GitHub eintragen: **Projekt-Repository**
+   → **Settings** → **Deploy keys** → **Add deploy key** → Titel z. B.
    `stage-server`, Key einfügen, **kein** Schreibzugriff, speichern.
+
+4. Alias auf dem Server anlegen (nano: speichern = `Strg+O`, `Enter` — beenden =
+   `Strg+X`): [SERVER]
+
+   ```bash
+   nano ~/.ssh/config
+   ```
+
+   Diesen Block ergänzen (Projektname anpassen):
+
+   ```
+   Host github.com-<projektname>
+       HostName github.com
+       User git
+       IdentityFile ~/.ssh/<projektname>_github_ed25519
+       IdentitiesOnly yes
+   ```
 
 5. Vom Server aus testen (GitHub sperrt nicht — gefahrlos): [SERVER]
 
    ```bash
-   ssh -T git@github.com
+   ssh -T git@github.com-<projektname>
    exit
    ```
 
-**Erfolgskriterium:** Der Test auf dem Server meldet `Hi <organisation>/<projektname>!`
-(bei Deploy Keys meldet GitHub den Repo-Namen statt eines Benutzernamens).
+**Erfolgskriterium:** Der Test meldet `Hi <organisation>/<projektname>!` — bei
+Deploy Keys nennt GitHub den Repo-Namen statt eines Benutzernamens. (Meldet er
+ein anderes Repo, greift der falsche Key — Alias-Block und `IdentitiesOnly yes`
+prüfen.)
 
 ---
 
-## Schritt 8 — Subdomain auf das Zielverzeichnis zeigen lassen
-
-**Was & warum:** Contao liefert seine Seiten aus dem Unterordner `public/` aus.
-Die Stage-Subdomain (`<projektname>.revolte-labor.de`) muss deshalb im
-Hosting-Panel auf `<remote-pfad>/public` zeigen — sonst sieht man später
-Verzeichnislisten oder 403-Fehler statt der Website.
-
-**Machen:** Im Hosting-Panel (Hetzner: KonsoleH) die Subdomain
-`<projektname>.revolte-labor.de` anlegen bzw. bearbeiten und als Zielverzeichnis
-`<remote-pfad>/public` eintragen. SSL/Zertifikat aktivieren, falls das Panel es
-anbietet.
-
-**Wichtig:** Falls das Panel dabei den Zielordner mit Platzhalter-Dateien anlegt
-(`index.html` o. ä.), diese wieder löschen — der nächste Schritt verlangt einen
-**leeren** Ordner.
-
-**Erfolgskriterium:** Subdomain existiert und zeigt auf `<remote-pfad>/public`
-(dass sie noch einen Fehler anzeigt, ist okay — dort liegt ja noch nichts).
-
----
-
-## Schritt 9 — Diagnose vor dem ersten Deploy
+## Schritt 8 — Diagnose vor dem ersten Deploy
 
 **Was & warum:** Bevor irgendetwas auf den Server geht, prüfen zwei Befehle die
 komplette Kette: lokale Werkzeuge, Konfiguration, SSH-Profil, Git-Zustand und die
@@ -414,15 +433,18 @@ ddev exec php vendor/bin/contao-console revolte:deploy:check stage --env=dev
 **Erfolgskriterium:** `doctor` meldet „Lokale Umgebung ist bereit", `check`
 meldet „Umgebung *stage* ist bereit für ein Deployment". Bei gelben/roten
 Punkten: Die Meldungen enthalten jeweils den konkreten Befehl zur Behebung —
-abarbeiten und erneut prüfen.
+abarbeiten und erneut prüfen. (Nicht committete/gepushte Änderungen jetzt gleich
+erledigen: `git add -A && git commit -m "Deploy-Setup" && git push`.)
 
 ---
 
-## Schritt 10 — Server initialisieren (einmalig)
+## Schritt 9 — Server initialisieren (einmalig)
 
 **Was & warum:** `deploy:init` richtet die Stage erstmalig ein: Es klont das
 GitHub-Repository in den (leeren) Zielordner und installiert die
-PHP-Abhängigkeiten auf dem Server. Datenbank kommt im nächsten Schritt.
+PHP-Abhängigkeiten auf dem Server. Der Zielordner muss vorher **nicht** angelegt
+werden — init erstellt ihn und besteht darauf, dass er leer ist (Schutz vor
+versehentlichem Überschreiben).
 
 **Machen:** [HOST]
 
@@ -430,31 +452,40 @@ PHP-Abhängigkeiten auf dem Server. Datenbank kommt im nächsten Schritt.
 ddev exec php vendor/bin/contao-console revolte:deploy:init stage --env=dev
 ```
 
-Am Ende gibt der Befehl „Nächste Schritte" aus — die machen wir jetzt. Auf dem
-Server muss die Datei `.env.local` angelegt werden: Sie enthält die
-**Datenbank-Zugangsdaten der Stage** und bleibt als einzige Datei nur auf dem
-Server (deshalb kann sie kein Script für dich schreiben).
+Am Ende gibt der Befehl „Nächste Schritte" mit fertig ausgefüllten Befehlen aus —
+die machen wir jetzt. Auf dem Server muss die Datei `.env.local` entstehen: Sie
+enthält die **Datenbank-Zugangsdaten der Stage** und bleibt als einzige Datei nur
+auf dem Server (deshalb kann sie kein Script für dich schreiben). Zwei Wege:
 
-1. [HOST] `ssh <projektname>-stage`
-2. [SERVER] `nano <remote-pfad>/.env.local` — Inhalt (Werte aus deiner
-   Unterlagen-Checkliste; das `APP_SECRET` hat der init-Befehl fertig generiert
-   ausgegeben — einfach von dort kopieren):
+**Weg A — per FTP (unser üblicher Weg):** Im Projektordner auf dem Server die
+Datei `.env.local` anlegen und befüllen (Inhalt siehe unten).
 
-   ```
-   APP_ENV=prod
-   APP_SECRET=<aus-der-init-ausgabe>
-   DATABASE_URL="mysql://benutzer:passwort@localhost:3306/dbname"
-   ```
+**Weg B — per SSH:** [HOST] `ssh <projektname>-stage`, dann [SERVER]
+`nano ~/<projektname>/.env.local` (speichern = `Strg+O`, `Enter` — beenden =
+`Strg+X`).
 
-   **Achtung:** Sonderzeichen im DB-Passwort (`@`, `#`, `/` …) müssen
-   URL-kodiert werden (z. B. `@` → `%40`), sonst startet Contao nicht.
+Inhalt (Werte aus deiner Unterlagen-Checkliste; das `APP_SECRET` hat die
+init-Ausgabe fertig generiert — von dort kopieren):
 
-3. Direkt auf dem Server testen, ob Contao mit der Konfiguration startet: [SERVER]
+```
+APP_ENV=prod
+APP_SECRET=<aus-der-init-ausgabe>
+DATABASE_URL="mysql://benutzer:passwort@localhost:3306/dbname"
+```
 
-   ```bash
-   php <remote-pfad>/vendor/bin/contao-console --version
-   exit
-   ```
+**Achtung:** Sonderzeichen im DB-Passwort (`@`, `#`, `/` …) müssen URL-kodiert
+werden (z. B. `@` → `%40`), sonst startet Contao nicht.
+
+Dann direkt auf dem Server testen, ob Contao mit der Konfiguration startet —
+auf dem Labor ist der Projektpfad einfach `~/<projektname>`:
+
+```bash
+ssh <projektname>-stage        # [HOST]
+php ~/<projektname>/vendor/bin/contao-console --version   # [SERVER]
+exit
+```
+
+(Den Befehl mit dem vollständigen Pfad zeigt auch die init-Ausgabe an.)
 
 **Erfolgskriterium:** Der Test gibt eine Contao-Versionsnummer aus, keinen Fehler.
 
@@ -464,6 +495,27 @@ Server (deshalb kann sie kein Script für dich schreiben).
   Servers ist zu alt. In `config/revolte_deploy.yaml` bei der Stage-Umgebung
   `php_cli: /usr/bin/php83` (bzw. die passende Version) eintragen und den Test
   auf dem Server mit diesem Binary wiederholen.
+
+---
+
+## Schritt 10 — Subdomain auf das Zielverzeichnis zeigen lassen
+
+**Was & warum:** Contao liefert seine Seiten aus dem Unterordner `public/` aus —
+der existiert seit dem Klonen in Schritt 9. Die Stage-Subdomain
+(`<projektname>.revolte-labor.de`) muss deshalb im Hosting-Panel auf
+`<remote-pfad>/public` zeigen — sonst sieht man Verzeichnislisten oder
+403-Fehler statt der Website. (Dieser Schritt kommt bewusst **nach** init:
+vorher gäbe es das Zielverzeichnis noch nicht, und ein vom Panel vorab
+angelegter Ordner würde die Leer-Prüfung von init stören.)
+
+**Machen:** Im Hosting-Panel (Hetzner: KonsoleH) die Subdomain
+`<projektname>.revolte-labor.de` anlegen bzw. bearbeiten und als Zielverzeichnis
+`<remote-pfad>/public` eintragen. SSL/Zertifikat aktivieren, falls das Panel es
+anbietet.
+
+**Erfolgskriterium:** Subdomain existiert und zeigt auf `<remote-pfad>/public`.
+(Dass sie noch eine Fehlerseite zeigt, ist okay — die Datenbank kommt im
+nächsten Schritt.)
 
 ---
 
@@ -510,14 +562,9 @@ DNS-Eintrag der Startseite leer lassen.)
 
 ## Geschafft — und wie es weitergeht
 
-Die Stage steht. Ab jetzt ist der Alltag kurz:
-
-| Situation | Befehl |
-| --- | --- |
-| Code geändert → auf Stage bringen | `git push`, dann `revolte:deploy:code stage` |
-| Abhängigkeiten/Contao aktualisiert | `revolte:deploy:full stage` |
-| Redaktions-Inhalte von Stage holen | `revolte:deploy:content:pull stage` |
-| Irgendwas klemmt | `revolte:deploy:doctor` bzw. `vendor/bin/revolte-ssh-setup stage --check` |
+Die Stage steht. Den täglichen Umgang (wann `full`, wann `code`, wann
+`content:pull`, Session-Start, Projektwechsel, Störungs-Checkliste) beschreibt
+die **[Alltags-Anleitung](alltag.md)**.
 
 Die Live-Umgebung kommt später mit denselben Schritten 6–11 dazu
 (`vendor/bin/revolte-ssh-setup live ...`) — siehe

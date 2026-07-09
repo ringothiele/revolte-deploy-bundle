@@ -105,6 +105,12 @@ touch /pfad/zur/umgebung/.allow_deploy_full
 
 ## Anleitungen
 
+**Grundlagen (unabhängig vom Szenario):**
+
+- [Ersteinrichtung Schritt für Schritt](../ersteinrichtung.md) — vom frischen Contao bis zum ersten Deploy, ohne jedes Vorwissen
+- [Alltag](../alltag.md) — täglicher Workflow nach der Einrichtung (Session-Start, Deploy-Zyklus, Störungs-Checkliste)
+- [Entwickler-Workflow](../entwickler-workflow.md) — das Konzept: wann welcher Befehl und warum
+
 Zu jedem Szenario gibt es zwei Versionen:
 
 **Manuelle Anleitung** — für Entwickler, die den Prozess selbst durchführen. Enthält

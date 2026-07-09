@@ -20,24 +20,60 @@ class SshProfileChecker
         return is_file($this->getSshConfigPath());
     }
 
-    public function profileExists(string $profileName): bool
+    /**
+     * All SSH config files to consider: the main config plus config.d/*.conf.
+     * Inside the ddev container the profiles live in ~/.ssh/config.d/revolte.conf
+     * (via homeadditions), so the main file alone is not enough.
+     *
+     * @return list<string>
+     */
+    public function getSshConfigFiles(): array
     {
-        if (!$this->sshConfigExists()) {
-            return false;
+        $files = [];
+        $main = $this->getSshConfigPath();
+
+        if (is_file($main)) {
+            $files[] = $main;
         }
 
-        $content = (string) file_get_contents($this->getSshConfigPath());
+        foreach (glob(\dirname($main) . '/config.d/*.conf') ?: [] as $file) {
+            if (is_file($file)) {
+                $files[] = $file;
+            }
+        }
 
-        return (bool) preg_match('/^Host\s+' . preg_quote($profileName, '/') . '\s*$/m', $content);
+        return $files;
+    }
+
+    public function profileExists(string $profileName): bool
+    {
+        foreach ($this->getSshConfigFiles() as $file) {
+            $content = (string) file_get_contents($file);
+
+            if (preg_match('/^Host\s+' . preg_quote($profileName, '/') . '\s*$/m', $content)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getProfileDetails(string $profileName): ?array
     {
-        if (!$this->sshConfigExists()) {
-            return null;
+        foreach ($this->getSshConfigFiles() as $file) {
+            $details = $this->parseProfileFromFile($file, $profileName);
+
+            if (null !== $details) {
+                return $details;
+            }
         }
 
-        $lines = explode("\n", (string) file_get_contents($this->getSshConfigPath()));
+        return null;
+    }
+
+    private function parseProfileFromFile(string $file, string $profileName): ?array
+    {
+        $lines = explode("\n", (string) file_get_contents($file));
         $inBlock = false;
         $details = [];
 
@@ -75,15 +111,16 @@ class SshProfileChecker
 
     public function buildRecommendedSnippet(string $profileName, string $projectName, string $environment): string
     {
-        $keyName = sprintf('%s_%s_ed25519', $projectName, $environment);
-
         return implode(PHP_EOL, [
+            'Am einfachsten per Setup-Script (legt Key, Profile und Config-Eintrag an):',
+            sprintf('    vendor/bin/revolte-ssh-setup %s', $environment),
+            'Oder manuell in ~/.ssh/config:',
             sprintf('Host %s', $profileName),
-            sprintf('    HostName <server-ip-oder-hostname>'),
-            sprintf('    User <ssh-user>'),
-            sprintf('    Port 22'),
-            sprintf('    IdentityFile ~/.ssh/revolte/%s', $keyName),
-            sprintf('    IdentitiesOnly yes'),
+            '    HostName <server-ip-oder-hostname>',
+            '    User <ssh-user>',
+            '    Port 22',
+            '    IdentityFile ~/.ssh/<kuerzel>_<server-account>_ed25519',
+            '    IdentitiesOnly yes',
         ]);
     }
 }

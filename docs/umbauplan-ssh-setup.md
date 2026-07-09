@@ -1,6 +1,8 @@
 # Umbauplan: revolte-ssh-setup v2 — deterministisch & fail2ban-schonend
 
-Stand: 2026-07-09 · Status: umgesetzt (Script v2 + KI-Schutz) · Validierung am Testprojekt steht aus
+Stand: 2026-07-09 · Status: umgesetzt, am Testprojekt validiert (kompletter
+Durchlauf bis zum ersten Full Deploy), Befunde aus dem Testlauf eingearbeitet
+(siehe Nachtrag unten)
 
 ## Ausgangslage / Schmerzpunkte
 
@@ -120,12 +122,46 @@ selbst ein und müssen nicht ins Bundle hartkodiert werden.
 
 ## Validierungs-Checkliste (Testprojekt)
 
-- [ ] Stage-Setup komplett neu: ein Lauf, 2× Passphrase, 1 Verbindungstest, 0 Fehlversuche
-- [ ] Wiederholter Lauf: keine Änderungen, keine Prompts außer Bestätigungen (Idempotenz)
+- [x] Stage-Setup komplett durchlaufen (Testprojekt deploy-fable, 2026-07-09) —
+      inkl. realem fail2ban-Bann und Recovery über WebFTP + Cooldown + 1 Test
+- [x] Cooldown greift, Meldungen verständlich, kein zweiter Versuch möglich
+- [x] Team-Defaults: Speichern beim ersten Stage-Setup funktioniert
 - [ ] Live-Setup rein per Flags (von KI vorbereitete Zeile)
 - [ ] `--check` nach Kaputtmachen einzelner Teile (Key weg, Agent leer, ddev aus, Profil verstellt)
-- [ ] Absichtlicher Fehlversuch → Cooldown greift, Meldung verständlich, kein zweiter Versuch möglich
 - [ ] Container-Verbindung bietet exakt einen Key an (`ddev exec ssh -v <profil>` prüfen)
 - [ ] Claude Code: Deny-Regeln blocken `ssh`/`rsync`/deploy-Commands wirklich (Syntax ggf. nachziehen)
 - [ ] macOS-Lauf beim Mac-Kollegen (Bash 3.2)
-- [ ] Team-Defaults: Speichern beim ersten Stage-Setup, Vorbefüllung beim zweiten Projekt
+- [ ] Zweitprojekt: Vorbefüllung durch Team-Defaults, Wiederhol-Idempotenz im echten Lauf
+
+## Nachtrag: Fix-Pass nach dem Validierungslauf (2026-07-09)
+
+16 Befunde aus dem realen Durchlauf, alle eingearbeitet:
+
+**Script (bin/revolte-ssh-setup):**
+- Key-auf-Server-Schritt komplett neu: erst konkreter Prüfweg per FTP/WebFTP
+  (KonsoleH hat keine SSH-Key-Seite!) statt Blindfrage „schon hinterlegt?";
+  drei Eintragswege A (FTP, empfohlen) / B (funktionierendes Profil, jetzt auch
+  nach **User** gefiltert — Zugänge sind projektgebunden) / C (Passwort-Login
+  mit unübersehbarer Warnung „SSH-PASSWORT, nicht Passphrase!")
+- Nach unklarem/fehlgeschlagenem manuellen Eintrag: Verbindungstest wird
+  übersprungen, bei gemeldetem Fehlversuch Cooldown — schließt die Lücke,
+  dass manuelle Fehlversuche das Cooldown-Netz umgingen
+- Hinweis auf zweites Terminal/Browser während das Script wartet
+- Team-Defaults-Frage verständlich formuliert (lokale Merkliste, kein Teilen)
+
+**PHP:**
+- SshProfileChecker liest jetzt auch `~/.ssh/config.d/*.conf` — behebt
+  falsches ✗ von deploy:check im Container; Empfehlungs-Snippet auf v2
+- DeployConfigResolver lehnt Werte mit `<platzhaltern>` klar ab (statt
+  kryptischem git-Fehler beim init-Clone)
+- init-Ausgabe: nano-Tastenkürzel + FTP-Alternative für .env.local
+
+**Doku:**
+- ersteinrichtung.md: Reihenfolge korrigiert (Git/GitHub vor Config;
+  Subdomain/Docroot NACH init — Ordner bleibt leer), Deploy-Key-Schritt
+  strukturell neu (ein Key pro Repo + Host-Alias `github.com-{projekt}`,
+  vorhandenen id_ed25519 nie anfassen), Labor-Pfadschema, nano-Kürzel,
+  Verbindungstest ohne Pfad-Nachschlagen, FTP-Weg für .env.local
+- entwickler-workflow.md zur Konzeptseite entschlackt (v1-Altlasten raus,
+  verweist auf ersteinrichtung/alltag), alltag.md neu, dist-YAML mit
+  Alias-Beispiel, einfuehrung.md verlinkt die Grundlagen-Seiten

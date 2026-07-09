@@ -117,9 +117,29 @@ class SshProfileCheckerTest extends TestCase
         $snippet = $checker->buildRecommendedSnippet('kundea-stage', 'kundea', 'stage');
 
         $this->assertStringContainsString('Host kundea-stage', $snippet);
-        $this->assertStringContainsString('kundea_stage_ed25519', $snippet);
+        $this->assertStringContainsString('revolte-ssh-setup stage', $snippet);
         $this->assertStringContainsString('IdentitiesOnly yes', $snippet);
-        $this->assertStringContainsString('~/.ssh/revolte/', $snippet);
+    }
+
+    public function testProfileExistsFindsProfileInConfigD(): void
+    {
+        // Container-Layout: Profil liegt in config.d/revolte.conf, nicht in der Hauptdatei
+        $dir = \dirname($this->tmpSshConfig) . '/config.d';
+        @mkdir($dir);
+        $confFile = $dir . '/revolte-test-' . uniqid() . '.conf';
+        file_put_contents($confFile, "Host container-projekt-stage\n    HostName stage.example.de\n    User deploy\n");
+        $this->writeSshConfig("Host was-anderes\n    HostName example.de\n");
+
+        try {
+            $checker = $this->checkerWithConfig($this->tmpSshConfig);
+
+            $this->assertTrue($checker->profileExists('container-projekt-stage'));
+
+            $details = $checker->getProfileDetails('container-projekt-stage');
+            $this->assertSame('stage.example.de', $details['hostname'] ?? null);
+        } finally {
+            unlink($confFile);
+        }
     }
 
     private function writeSshConfig(string $content): void

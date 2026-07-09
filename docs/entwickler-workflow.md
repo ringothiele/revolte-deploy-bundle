@@ -1,17 +1,26 @@
-# Entwickler-Workflow
+# Entwickler-Workflow — Konzept
 
-Diese Seite beschreibt den täglichen Arbeitsablauf mit revolte-deploy-tools — von der Ersteinrichtung bis zum Deployment.
+Diese Seite erklärt das **Konzept** hinter den Deploy-Befehlen: wann welcher
+Befehl der richtige ist und warum. Für die Abläufe gibt es eigene Seiten:
+
+- **[Ersteinrichtung](ersteinrichtung.md)** — von frischem Contao bis zum ersten Deploy, ohne Vorwissen
+- **[Alltag](alltag.md)** — Session-Start, Projektwechsel, Deploy-Zyklus, Störungs-Checkliste
+- **[Szenarien](szenarien/einfuehrung.md)** — Projektübernahme, Legacy, zweite Umgebung, Server-Migration
+
+Alle Befehle laufen im Projektordner in der Form
+`ddev exec php vendor/bin/contao-console <befehl> --env=dev`.
 
 ---
 
 ## Konzept: Wann welcher Befehl?
 
-Das Tool unterscheidet Deployment-Arten anhand der Frage: **Wer ist Source of Truth für den Content?**
+Das Tool unterscheidet Deployment-Arten anhand der Frage: **Wer ist Source of
+Truth für den Content?**
 
 ### Full Deploy — Entwicklerphase
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:full stage
+ddev exec php vendor/bin/contao-console revolte:deploy:full stage --env=dev
 ```
 
 Einsatz: während der Entwicklung, bevor Redakteure Inhalte pflegen.
@@ -25,7 +34,7 @@ Einsatz: während der Entwicklung, bevor Redakteure Inhalte pflegen.
 ### Code Deploy — Redakteursphase
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:code stage
+ddev exec php vendor/bin/contao-console revolte:deploy:code stage --env=dev
 ```
 
 Einsatz: sobald Redakteure Inhalte auf Stage/Live pflegen.
@@ -38,10 +47,11 @@ Einsatz: sobald Redakteure Inhalte auf Stage/Live pflegen.
 ### Content Pull — Entwicklung aufnehmen
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage
+ddev exec php vendor/bin/contao-console revolte:deploy:content:pull stage --env=dev
 ```
 
-Einsatz: wenn ein Entwickler den aktuellen Stand von Stage/Live in seine lokale Umgebung holen möchte.
+Einsatz: wenn ein Entwickler den aktuellen Stand von Stage/Live in seine lokale
+Umgebung holen möchte.
 
 - `git pull` aus dem Repository (Standard, überspringbar mit `--skip-git-pull`)
 - Remote-Datenbank wird lokal importiert
@@ -50,208 +60,88 @@ Einsatz: wenn ein Entwickler den aktuellen Stand von Stage/Live in seine lokale 
 - Lokale Felder wie `tl_page.dns` bleiben erhalten
 - Lokaler Cache wird geleert, Migrationen werden ausgeführt
 
+Varianten: `--skip-database` (nur Dateien), `--skip-files` (nur DB),
+`--skip-git-pull` (ohne Code-Update).
+
+### Content Push — neue Inhalte nach draußen
+
 ```bash
-# Nur Dateien, keine DB
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage --skip-database
-
-# Nur DB, keine Dateien
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage --skip-files
-
-# Ohne git pull
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage --skip-git-pull
+ddev exec php vendor/bin/contao-console revolte:deploy:content:push stage --env=dev
 ```
+
+Einsatz: lokal neu aufgebaute Seiten/Artikel/Inhalte auf den Server übertragen,
+ohne die dortige Datenbank zu überschreiben. Übertragen werden nur **neue**
+Datensätze seit dem letzten `content:pull` (die Baseline-Datei
+`.revolte-content-baseline.json` merkt sich den Stand); IDs werden dabei
+konfliktfrei neu vergeben, neue Seiten landen unveröffentlicht auf dem Server.
 
 ### Rollback — Notfallrückkehr
 
 ```bash
-# Verfügbare Backups anzeigen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:rollback stage --list
-
-# Auf neuestes Backup zurück (fragt nach Bestätigung)
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:rollback stage
-
-# Auf bestimmtes Backup
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:rollback stage --backup=20260603_143022_a1b2c3d4_full
+ddev exec php vendor/bin/contao-console revolte:deploy:rollback stage --list --env=dev
+ddev exec php vendor/bin/contao-console revolte:deploy:rollback stage --env=dev
+ddev exec php vendor/bin/contao-console revolte:deploy:rollback stage --backup=20260603_143022_a1b2c3d4_full --env=dev
 ```
 
-Backups werden automatisch vor jedem Deploy erstellt und auf dem Server unter `~/revolte-deploy-backups/` gespeichert. Es werden die letzten 3 Backups behalten.
+Backups werden automatisch vor jedem Deploy erstellt und auf dem Server unter
+`~/revolte-deploy-backups/` gespeichert. Es werden die letzten 3 Backups behalten.
 
 ---
 
 ## CSS-Hotfixes auf Stage/Live
 
-Manchmal muss eine kleine CSS-Änderung direkt auf Stage/Live gemacht werden, ohne den vollen Entwicklungszyklus. Dafür gibt es das Hotfix-Verzeichnis:
+Manchmal muss eine kleine CSS-Änderung direkt auf Stage/Live gemacht werden,
+ohne den vollen Entwicklungszyklus. Dafür gibt es das Hotfix-Verzeichnis:
 
-1. Datei `files/<projekt>/layout/hotfix/hotfix.scss` auf dem Server anlegen (via SSH oder FTP)
-2. Bei nächstem Content Pull wird sie automatisch mitgeholt:
-   ```bash
-   APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage
-   ```
+1. Datei `files/<projekt>/layout/hotfix/hotfix.scss` auf dem Server anlegen (via FTP oder SSH)
+2. Beim nächsten `content:pull` wird sie automatisch mitgeholt
 3. Änderungen in die regulären SCSS-Dateien einarbeiten und Hotfix-Datei löschen
 
 Das Hotfix-Verzeichnis ist gitigniert und taucht nie im Repository auf.
 
 ---
 
-## Neues Projekt einrichten
+## SSH-Modell in Kürze
 
-### 1. Lokale Umgebung aufsetzen
+- **Profile:** pro Projekt und Umgebung eines (`<projektname>-stage`,
+  `<projektname>-live`). Angelegt werden sie von `vendor/bin/revolte-ssh-setup`
+  — auf dem Host (`~/.ssh/config`) und im ddev-Container
+  (`.ddev/homeadditions/.ssh/`). Die Container-Profile sind
+  **entwicklerspezifisch und gitigniert** — jeder Entwickler führt das
+  Setup-Script einmal selbst aus.
+- **Keys:** einer pro Entwickler und Server-Account
+  (`{kürzel}_{account}_ed25519`) — Profile sammeln sich, Keys nicht.
+  Jedes Profil pinnt seinen Key (`IdentitiesOnly yes`), damit pro Verbindung
+  genau ein Key angeboten wird — wichtig, weil fail2ban auf den Servern schon
+  nach einem Fehlversuch sperrt.
+- **Agent:** `ddev auth ssh` einmal pro Rechner-Session (gilt für alle
+  ddev-Projekte). Details in der [Alltags-Anleitung](alltag.md).
+- **Diagnose:** `vendor/bin/revolte-ssh-setup <env> --check` (read-only,
+  respektiert den fail2ban-Cooldown).
 
-Das Setup-Script erstellt eine DDEV-Umgebung mit leerem Contao:
+### WSL2 vs. Mac
 
-```bash
-# Script in leeren Projektordner kopieren und ausführen
-cp /pfad/zu/revolte-deploy-tools/bin/revolte-setup ~/projekte/mein-projekt/
-cd ~/projekte/mein-projekt
-bash revolte-setup
-```
-
-Das Script fragt nach: Projektname, Contao-Version, PHP-Version, Webroot, MariaDB-Version.
-Danach sind DDEV, Contao, Adminer, Mailpit und der Contao Manager eingerichtet.
-
-### 2. revolte-deploy-tools einbinden
-
-```bash
-ddev composer require --dev revolte/contao-deploy-tools
-
-# Konfiguration anlegen
-cp vendor/revolte/contao-deploy-tools/resources/revolte_deploy.yaml.dist config/revolte_deploy.yaml
-```
-
-### 3. Grundkonfiguration anpassen
-
-`config/revolte_deploy.yaml` öffnen — mindestens `project` und `git.repository` eintragen:
-
-```yaml
-project: mein-projekt
-git:
-  repository: git@github-mein-projekt:revolte/mein-projekt.git
-```
-
-Umgebungen (stage, live) werden im nächsten Schritt automatisch eingetragen.
-
-### 4. SSH-Einrichtung — für jede Umgebung einmal
-
-```bash
-vendor/bin/revolte-ssh-setup
-```
-
-Das Script fragt alle Werte ab (Umgebungsname, SSH-Profil, Server, Branch, Entwicklerkürzel)  
-und erledigt: Key-Prüfung, `~/.ssh/config`, ddev homeadditions, Key auf Server, `revolte_deploy.yaml`.  
-Für eine weitere Umgebung (live, Serverumzug) einfach erneut ausführen.
-
-Details: siehe [ssh-einrichtung.md](ssh-einrichtung.md)
-
-### 5. Umgebung prüfen
-
-```bash
-ddev exec php bin/console revolte:deploy:doctor
-ddev exec php bin/console revolte:deploy:check stage
-```
-
-### 6. Ersten Deploy ausführen
-
-```bash
-ddev exec php bin/console revolte:deploy:init stage
-ddev exec php bin/console revolte:deploy:full stage
-```
-
-Server-Einrichtung nach Init: siehe [server-einrichtung.md](server-einrichtung.md)
-
----
-
-## Bestehendes Projekt übernehmen (Repo vorhanden)
-
-```bash
-# 1. Lokale Umgebung aufsetzen (wie oben, Schritte 1–2)
-# 2. Repo klonen
-git clone git@github.com:revolte/mein-projekt.git .
-
-# 3. Abhängigkeiten installieren
-ddev composer install
-
-# 4. Aktuellen Stand holen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull stage
-```
-
----
-
-## Legacy-Projekt ohne Repo
-
-1. Neues GitHub-Repository anlegen
-2. Lokale Umgebung aufsetzen (Setup-Script, Schritte 1–2)
-3. Server-Code per SSH/rsync lokal holen und als ersten Commit einchecken
-4. Deploy Key auf dem Server einrichten (→ [ssh-einrichtung.md](ssh-einrichtung.md))
-5. `config/revolte_deploy.yaml` anlegen und anpassen
-6. Content Pull ausführen
-
----
-
-## Täglicher Start
-
-```bash
-cd ~/projekte/mein-projekt
-ddev start
-ddev auth ssh
-```
-
-`ddev auth ssh` lädt deinen SSH-Key in den ddev-Container — nötig für alle Deploy-Commands.  
-Du wirst einmalig nach der Passphrase gefragt. Muss nach jedem WSL-Neustart wiederholt werden.
-
-Die SSH-Profile für alle konfigurierten Umgebungen sind bereits im Repo hinterlegt  
-(`.ddev/homeadditions/.ssh/config.d/`) — kein manuelles Einrichten im ddev-Container nötig.  
-Auf deinem Host-System (`~/.ssh/config`) trägst du die Profile weiterhin selbst ein,  
-falls du SSH-Befehle direkt im Terminal nutzt (außerhalb von ddev).
-
----
-
-## WSL2 vs. Mac — Unterschiede
-
-### SSH-Agent
-
-**WSL2:** muss manuell gestartet werden. Am einfachsten in `~/.bashrc` oder `~/.zshrc`:
-
-```bash
-if [ -z "$SSH_AUTH_SOCK" ]; then
-    eval "$(ssh-agent -s)" > /dev/null
-fi
-```
-
-Nach dem WSL-Start einmalig den Key laden:
-
-```bash
-ssh-add ~/.ssh/id_ed25519
-```
-
-**Mac:** SSH-Agent läuft automatisch über den macOS-Keychain. Kein manueller Start nötig.
-
-### rsync
-
-**WSL2/Ubuntu:** muss ggf. installiert werden:
-```bash
-sudo apt install rsync
-```
-
-**Mac:** vorinstalliert.
-
-### Sonstiges
-
-Alle Deploy-Commands funktionieren auf beiden Plattformen identisch. DDEV-Befehle sind ebenfalls gleich.
+Alle Befehle sind auf beiden Plattformen identisch. Unter WSL2 muss `rsync`
+ggf. nachinstalliert werden (`sudo apt install rsync`), am Mac ist es
+vorinstalliert. Ein Host-SSH-Agent ist nur nötig, wenn du dich manuell per
+`ssh <profil>` verbinden willst — die Deploy-Befehle nutzen den ddev-Agenten.
 
 ---
 
 ## Alle verfügbaren Commands
 
 ```bash
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:doctor               # Lokale Umgebung prüfen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:status [env]         # Deploy-Stand aller Umgebungen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:check <env>          # Zielumgebung prüfen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:init <env>           # Ersteinrichtung Remote
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:full <env>           # Vollständiger Deploy
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:code <env>           # Code-Deploy (ohne DB)
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:code <env> --dry-run # Zeigt Commits + Änderungen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:pull <env>   # Content von Remote holen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:content:push <env>   # Neue lokale Records pushen
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:rollback <env>       # Rollback auf Backup
-APP_ENV=dev php vendor/bin/contao-console revolte:deploy:explain <profil> <pfad>  # Regel erklären
+revolte:deploy:doctor                    # Lokale Umgebung prüfen (rein lokal)
+revolte:deploy:status [env]              # Deploy-Stand aller Umgebungen
+revolte:deploy:check <env>               # Zielumgebung prüfen
+revolte:deploy:init <env>                # Ersteinrichtung Remote
+revolte:deploy:full <env>                # Vollständiger Deploy (Code + DB + Dateien)
+revolte:deploy:code <env>                # Code-Deploy (ohne DB)
+revolte:deploy:code <env> --dry-run      # Vorschau: Commits + Änderungen
+revolte:deploy:content:pull <env>        # Content von Remote holen
+revolte:deploy:content:push <env>        # Neue lokale Records pushen
+revolte:deploy:rollback <env>            # Rollback auf Backup
+revolte:deploy:explain <profil> <pfad>   # Deploy-Regel für einen Pfad erklären (rein lokal)
 ```
+
+(Jeweils als `ddev exec php vendor/bin/contao-console … --env=dev` ausführen.)

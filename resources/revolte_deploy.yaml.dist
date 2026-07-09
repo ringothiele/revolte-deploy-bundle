@@ -15,7 +15,11 @@ transport: git
 
 git:
   remote: origin
-  repository: git@github.com:revolte/mein-projekt.git
+  # Serverseitige Clone-URL. "github.com-mein-projekt" ist ein SSH-Alias, der beim
+  # Deploy-Key-Setup AUF DEM SERVER angelegt wird (ein Deploy Key gilt bei GitHub
+  # nur für ein Repo — der Alias ordnet Key und Repo einander zu).
+  # Siehe docs/ersteinrichtung.md, Schritt 7. Lokal bleibt origin die normale URL.
+  repository: git@github.com-mein-projekt:revolte/mein-projekt.git
 
 environments:
 

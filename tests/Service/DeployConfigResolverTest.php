@@ -124,6 +124,22 @@ class DeployConfigResolverTest extends TestCase
         $this->assertSame(basename($this->tmpDir), $resolver->getProjectName());
     }
 
+    public function testLoadThrowsOnLeftoverPlaceholder(): void
+    {
+        $this->writeConfig([
+            'project' => 'test',
+            'git' => ['repository' => 'git@github.com-test:<organisation>/test.git'],
+            'environments' => [],
+        ]);
+
+        $resolver = new DeployConfigResolver($this->tmpDir);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Platzhalter nicht ersetzt/');
+
+        $resolver->load();
+    }
+
     public function testLoadThrowsOnInvalidYaml(): void
     {
         file_put_contents($this->tmpDir . '/config/revolte_deploy.yaml', "invalid: yaml: :\n  bad indent\nbad:");

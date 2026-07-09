@@ -50,9 +50,37 @@ class DeployConfigResolver
             throw new \RuntimeException('Die Deploy-Konfiguration ist leer oder ungültig.');
         }
 
+        $this->assertNoPlaceholders($raw, '');
+
         $this->config = $raw;
 
         return $this->config;
+    }
+
+    /**
+     * Rejects values that still contain unreplaced placeholders like <organisation>.
+     * Copy-pasted templates otherwise fail much later with cryptic errors
+     * (e.g. git clone: "is not a valid repository name").
+     */
+    private function assertNoPlaceholders(array $config, string $path): void
+    {
+        foreach ($config as $key => $value) {
+            $current = '' === $path ? (string) $key : $path . '.' . $key;
+
+            if (is_array($value)) {
+                $this->assertNoPlaceholders($value, $current);
+                continue;
+            }
+
+            if (is_string($value) && preg_match('/<[^<>\s][^<>]*>/', $value)) {
+                throw new \RuntimeException(sprintf(
+                    'Platzhalter nicht ersetzt: "%s" (unter "%s").%sBitte den echten Wert in config/revolte_deploy.yaml eintragen.',
+                    $value,
+                    $current,
+                    PHP_EOL,
+                ));
+            }
+        }
     }
 
     public function getEnvironment(string $name): array
