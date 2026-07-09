@@ -133,6 +133,20 @@ selbst ein und müssen nicht ins Bundle hartkodiert werden.
 - [ ] macOS-Lauf beim Mac-Kollegen (Bash 3.2)
 - [ ] Zweitprojekt: Vorbefüllung durch Team-Defaults, Wiederhol-Idempotenz im echten Lauf
 
+## Ideen-Backlog (unpriorisiert, nächste Runden)
+
+1. **`php_cli: auto` echt machen** — Kandidaten aus dem (ungenutzten)
+   HetznerProviderProfile beim init/check auf dem Server durchprobieren,
+   Ergebnis melden bzw. eintragen. Größter bekannter Schwachpunkt.
+2. **Wartungsmodus beim Full Deploy** — `contao:maintenance-mode enable/disable`
+   um den DB-Import herum (aktuell liefert die Seite während des Imports aus).
+3. **`content:push`-Tabellen konfigurierbar** — aktuell hart auf 5 Tabellen;
+   Projekte mit News/Events (`tl_news`, `tl_calendar_events`) fallen still raus.
+4. **init erkennt fehlenden Deploy-Key** — bei `Permission denied` am Clone die
+   fertige Key+Alias-Anleitung mit echten Projekt-/Repo-Namen ausgeben.
+5. **Health-Check nach Deploy** — optionales `url:` je Umgebung, nach code/full
+   einmal HTTP-Check.
+
 ## Nachtrag: Fix-Pass nach dem Validierungslauf (2026-07-09)
 
 16 Befunde aus dem realen Durchlauf, alle eingearbeitet:
