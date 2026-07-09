@@ -64,6 +64,11 @@ class DeployDoctorCommand extends Command
 
         $this->checkDeployConfig($io);
 
+        // ── KI-Schutz ────────────────────────────────────────────────────────
+        $io->section('KI-Schutz');
+
+        $this->checkKiGuard($io);
+
         // ── Ergebnis ─────────────────────────────────────────────────────────
         if ($allGood) {
             $io->success('Lokale Umgebung ist bereit.');
@@ -226,6 +231,28 @@ class DeployDoctorCommand extends Command
 
         $branch = $this->git->getCurrentBranch($this->projectRoot);
         $io->writeln(sprintf(' <info>✓</info> Git-Repository — Branch: %s', $branch));
+    }
+
+    private function checkKiGuard(SymfonyStyle $io): void
+    {
+        $path = $this->projectRoot . '/.claude/settings.json';
+
+        if (!is_file($path)) {
+            $io->writeln(' <comment>!</comment> Keine .claude/settings.json — SSH-Deny-Regeln für Claude Code nicht aktiv');
+            $io->writeln('   → Vorlage kopieren:');
+            $io->writeln('   mkdir -p .claude && cp vendor/revolte/contao-deploy-tools/resources/ki/claude-settings.dist.json .claude/settings.json');
+
+            return;
+        }
+
+        $content = (string) file_get_contents($path);
+
+        if (str_contains($content, 'Bash(ssh')) {
+            $io->writeln(' <info>✓</info> .claude/settings.json mit SSH-Deny-Regeln vorhanden');
+        } else {
+            $io->writeln(' <comment>!</comment> .claude/settings.json vorhanden, aber ohne SSH-Deny-Regeln');
+            $io->writeln('   → Deny-Liste aus vendor/revolte/contao-deploy-tools/resources/ki/claude-settings.dist.json übernehmen');
+        }
     }
 
     private function checkDeployConfig(SymfonyStyle $io): void

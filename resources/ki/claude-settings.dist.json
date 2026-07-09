@@ -1,0 +1,29 @@
+{
+    "//": "revolte-deploy-tools — KI-Schutz für Claude Code. Als .claude/settings.json ins Projekt kopieren (committen, gilt für alle Entwickler). Verhindert, dass die KI SSH-Verbindungen aufbaut oder Deployments auslöst — beides führt der Entwickler selbst aus. Erlaubt bleiben revolte:deploy:doctor und revolte:deploy:explain (rein lokal).",
+    "permissions": {
+        "deny": [
+            "Bash(ssh)",
+            "Bash(ssh:*)",
+            "Bash(scp:*)",
+            "Bash(sftp:*)",
+            "Bash(rsync:*)",
+            "Bash(ssh-keygen:*)",
+            "Bash(ssh-copy-id:*)",
+            "Bash(ssh-add:*)",
+            "Bash(ddev auth:*)",
+            "Bash(ddev exec ssh:*)",
+            "Bash(ddev exec ssh-add:*)",
+            "Bash(ddev exec scp:*)",
+            "Bash(ddev exec rsync:*)",
+            "Bash(*revolte-ssh-setup*)",
+            "Bash(*revolte:deploy:init*)",
+            "Bash(*revolte:deploy:code*)",
+            "Bash(*revolte:deploy:full*)",
+            "Bash(*revolte:deploy:rollback*)",
+            "Bash(*revolte:deploy:status*)",
+            "Bash(*revolte:deploy:check*)",
+            "Bash(*revolte:deploy:content*)",
+            "Bash(*revolte:legacy:code*)"
+        ]
+    }
+}
